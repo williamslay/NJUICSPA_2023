@@ -18,6 +18,9 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include <limits.h>
+#include <utils.h>
+#include <memory/vaddr.h>
 
 static int is_batch_mode = false;
 
@@ -42,6 +45,11 @@ static char* rl_gets() {
   return line_read;
 }
 
+static void wp_display()
+{
+
+}
+
 static int cmd_c(char *args) {
   cpu_exec(-1);
   return 0;
@@ -49,7 +57,63 @@ static int cmd_c(char *args) {
 
 
 static int cmd_q(char *args) {
+  nemu_state.state = NEMU_QUIT;
   return -1;
+}
+
+static int cmd_si(char *args) {
+  int arg;
+  if (args == NULL )
+    arg = 1;
+  else{
+    arg = atoi(args);
+    Assert(arg >= INT_MIN && arg <=INT_MAX,"the argument given is in wrong range");
+  }
+  cpu_exec(arg);
+  return 0;
+}
+
+static int cmd_info(char *args) {
+  Assert(strlen(args) == 1,"Illegal parameters.");
+  switch (args[0]){
+    case 'r': isa_reg_display(); break;
+    case 'w': wp_display(); break;
+  }
+  return 0;
+}
+
+static int cmd_x(char *args) {
+  char *str_end = args + strlen(args);
+ /* extract the first argument */
+  char *num = strtok(NULL, " ");
+  Assert(num != NULL,"Need parameters.");
+  int n = atoi(num);
+  char *addr_exp = num + strlen(num) + 1;
+  if (addr_exp >= str_end) {
+    addr_exp = NULL;
+    panic("Need parameters.");
+  } 
+  vaddr_t addr = strtoul(addr_exp,NULL,16);
+  for(int i=0;i<n;i++) {
+    word_t val = vaddr_read(addr+i*4,4);
+    if( i%4 == 0 ) {
+      #ifdef  CONFIG_ISA64
+        _Log(ANSI_FMT("0x%016x:", ANSI_FG_BLUE) ,addr+i*4);
+      #else
+        _Log(ANSI_FMT("0x%08x: ", ANSI_FG_BLUE) ,addr+i*4);
+      #endif
+    }
+    #ifdef  CONFIG_ISA64
+      printf("0x%016x\t",val);
+    #else
+      printf("0x%08x\t",val);
+    #endif
+    if( i%4 == 3 ) {
+      printf("\n"); 
+    }
+  }
+  printf("\n");  
+  return 0;
 }
 
 static int cmd_help(char *args);
@@ -62,8 +126,9 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
-
-  /* TODO: Add more commands */
+  { "si","Let the program pause after executing N instructions in a single step.When N is not given, the default is 1.",cmd_si},
+  { "info","Print the state of the program. The subcommands are 'r' for register and 'w' for watchpoint infomation.",cmd_info},
+  { "x","Find the value of the expression EXPR, use the result as the starting memory address, and output N consecutive 4-byte outputs in hexadecimal.",cmd_x}
 
 };
 
