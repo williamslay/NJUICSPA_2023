@@ -14,6 +14,7 @@
 ***************************************************************************************/
 
 #include <isa.h>
+#include <memory/vaddr.h>
 
 /* We use the POSIX regex functions to process regular expressions.
  * Type 'man regex' for more information about POSIX regex functions.
@@ -24,23 +25,26 @@
 
 
 enum {
-  TK_NOTYPE = 256, TK_EQ,TK_NUM,
+  TK_NOTYPE = 256, TK_EQ,TK_DNUM,TK_NEQ,TK_AND,TK_HNUM,TK_REG,DEREF
 };
 
 static struct rule {
   const char *regex;
   int token_type;
 } rules[] = {
-  {" +", TK_NOTYPE},        // spaces
-  {"\\+", '+'},             // plus
-  {"\\-", '-'},             // sub
-  {"\\*", '*'},             // times
-  {"\\/", '/'},             // divided
-  {"[0-9][0-9]*",TK_NUM},   // num
-  {"\\(", '('},             // left bracket
-  {"\\)", ')'},             // right bracket
-
-  {"==", TK_EQ},            // equal
+  {" +", TK_NOTYPE},                // spaces
+  {"\\+", '+'},                     // plus
+  {"\\-", '-'},                     // sub
+  {"\\*", '*'},                     // times
+  {"\\/", '/'},                     // divided
+  {"0[xX][0-9a-fA-F]+",TK_HNUM},    // hexadecimal num
+  {"\\$\\$?[a-zA-Z0-9]+",TK_REG},       // reg name
+  {"[0-9]+",TK_DNUM},          // decimal num
+  {"\\(", '('},                     // left bracket
+  {"\\)", ')'},                     // right bracket
+  {"&&", TK_AND},                    // and
+  {"!=", TK_NEQ},                    // not equal
+  {"==", TK_EQ},                    // equal
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -73,7 +77,7 @@ static Token tokens[32] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 static bool make_token(char *e) {
-  int position = 0;
+  int position = 0 ;
   int i;
   regmatch_t pmatch;
 
@@ -86,19 +90,32 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        if(substr_len > 32) {
+          printf("A syntax error in expression, Long Parameters.\n");
+          return false; 
+        }
 
+        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
         position += substr_len; 
 
         switch (rules[i].token_type) {
           case TK_NOTYPE: break; 
-          case TK_NUM:
+          case TK_DNUM:
+            tokens[nr_token].type = rules[i].token_type;  
+            memcpy(tokens[nr_token].str,substr_start,substr_len); 
+            nr_token++;
+            break;
+          case TK_HNUM:
             tokens[nr_token].type = rules[i].token_type;
-            Assert( substr_len <= 32,"Long Parameters.");
             memcpy(tokens[nr_token].str,substr_start,substr_len); 
             nr_token++;
             break; 
+          case TK_REG: 
+            tokens[nr_token].type = rules[i].token_type;
+            memcpy(tokens[nr_token].str,substr_start+1,substr_len-1); 
+            nr_token++;
+            break;
           default: tokens[nr_token++].type = rules[i].token_type ;
         }
         break;
@@ -133,15 +150,17 @@ static bool check_parentheses(int p,int q) {
 
 
 static int get_mainop(int p,int q) {
-  int op = 0;
+  int op = -1;
   int flag = 0;
-  int pred=0;//predences
+  int pred = 0;//predences
   for(int i=p;i<=q;i++) {
     switch (tokens[i].type) {
     case '(': flag++;  break;
     case ')': flag--;  break;
-    case '+': case '-': if(flag == 0) {op = i; pred=1; break;} else break;
-    case '*': case '/': if(flag == 0) {if(pred == 1) break; else op = i; break;} else break;
+    case TK_AND :  if(flag == 0) { op = i;pred=4;} break;
+    case TK_NEQ : case TK_EQ : if(flag == 0 && pred <= 3) {op = i;pred = 3;} break;
+    case '+': case '-': if(flag == 0 && pred <= 2) {op = i; pred = 2;} break;
+    case '*': case '/': if(flag == 0 && pred <= 1) {op = i; pred = 1;} break;
     default:break;
     }
   }
@@ -154,28 +173,44 @@ static word_t eval(int p, int q) {
     assert(0);
   }
   else if (p == q) {
-    /* Single token.
-     * For now this token should be a number.
-     * Return the value of the number.
-     */
-    return atoi(tokens[p].str);
+    /* Single token.*/
+    switch (tokens[p].type) {
+      case TK_DNUM: 
+        return atoi(tokens[p].str); 
+      case TK_HNUM:
+        return strtoul(tokens[p].str,NULL,16);
+      case TK_REG: 
+        return isa_reg_str2val(tokens[p].str,NULL);
+    }
   }
-  else if (check_parentheses(p, q) == true) {
+  else if (check_parentheses(p, q)) {
     return eval(p + 1, q - 1);
   }
   else {
     int op = get_mainop(p,q);
-    word_t val1 = eval(p, op - 1);
-    word_t val2 = eval(op + 1, q);
-
-    switch (tokens[op].type) {
-      case '+': return val1 + val2;
-      case '-': return val1 - val2;
-      case '*': return val1 * val2;
-      case '/': return val1 / val2;
-      default: assert(0);
+    if(op != -1) {
+      word_t val1 = eval(p, op - 1);
+      word_t val2 = eval(op + 1, q);
+      switch (tokens[op].type) {
+        case '+': return val1 + val2;
+        case '-': return val1 - val2;
+        case '*': return val1 * val2;
+        case '/': return val1 / val2;
+        case TK_AND : return val1 && val2;
+        case TK_EQ :return val1 == val2;
+        case TK_NEQ :return val1 != val2;
+        default: assert(0);
+      }
+    }else{
+      if(tokens[p].type == DEREF) {
+        vaddr_t addr = eval(p+1,q);
+        return vaddr_read(addr,4);
+      }else {
+        assert(0);
+      }
     }
   }
+  return 0;
 }
 
 static bool check_expr(int p ,int q)  {
@@ -184,18 +219,31 @@ static bool check_expr(int p ,int q)  {
     assert(0);
   }
   else if (p == q) {
-    if(tokens[p].type!=TK_NUM)
-      return false;
-    else return true;
-  }
-  else if (check_parentheses(p, q) == true) {
+    if(tokens[p].type ==TK_DNUM || tokens[p].type==TK_HNUM)
+      return true;
+    else if(tokens[p].type==TK_REG) {
+      bool success = true;
+      isa_reg_str2val(tokens[p].str,&success);
+      return success; 
+    }
+    else return false;
+  } 
+  else if (check_parentheses(p, q)) {
     return check_expr(p + 1, q - 1);
   }
   else  {
-   int op = get_mainop(p,q);
-    bool val1 = check_expr(p, op - 1);
-    bool val2 = check_expr(op + 1, q);
-    return val1&&val2;
+    int op = get_mainop(p,q);
+    if(op != -1) {
+      bool val1 = check_expr(p, op - 1);
+      bool val2 = check_expr(op + 1, q);
+      return val1&&val2;
+    }else{
+      if(tokens[p].type == DEREF) {
+        return check_expr(p+1,q);
+      }else {
+        assert(0);
+      }
+    }
   } 
 }
 
@@ -205,17 +253,27 @@ word_t expr(char *e, bool *success) {
     *success = false;
     return 0;
   }
+
+  int certenType[]  = {'(','+','-','*','/',TK_AND,TK_NEQ,TK_EQ,DEREF};
+  for (int i = 0; i < nr_token; i ++) {
+    if (tokens[i].type == '*') {
+      if(i == 0) tokens[i].type = DEREF;
+      else {
+        for(int j = 0;j<9 ;j++) {
+          if(tokens[i-1].type == certenType[j] ) {
+            tokens[i].type = DEREF; 
+            break;
+          }
+        }
+      }
+    }
+  }
+
   if(nr_token == 0 || !check_brak(0,nr_token-1) ||!check_expr(0,nr_token-1)) {
-    printf("bad expression!\n");
+    printf("A syntax error in expression!\n");
     *success = false;
     return 0;
   }  
-  
-//  for (int i = 0; i < nr_token; i ++) {
-//     if (tokens[i].type == '*' && (i == 0 || tokens[i - 1].type == certain type) ) {
-//       tokens[i].type = DEREF;
-//     }
-//   }
 
   return eval(0, nr_token-1);
 
@@ -223,7 +281,7 @@ word_t expr(char *e, bool *success) {
 
 
 void test_expr() {
-    FILE *fp = fopen("/home/will/NJUPA/ics2023/nemu/tools/gen-expr/input", "r");
+    FILE *fp = fopen("/home/will/NJUPA/ics2023/nemu/tools/gen-expr/wrong_input", "r");
     assert(fp != NULL);
 
     char e[65536]={};

@@ -67,14 +67,20 @@ static int cmd_si(char *args) {
     arg = 1;
   else{
     arg = atoi(args);
-    Assert(arg >= INT_MIN && arg <=INT_MAX,"the argument given is in wrong range");
+    if(arg < 1 || arg >INT_MAX)  {
+      printf("The argument given is in wrong range !\n");
+      return 0;
+    }
   }
   cpu_exec(arg);
   return 0;
 }
 
 static int cmd_info(char *args) {
-  Assert(strlen(args) == 1,"Illegal parameters.");
+  if(args == NULL || strlen(args) != 1) {
+    printf("Need or illegal parameters!\n");
+    return 0;
+  }
   switch (args[0]){
     case 'r': isa_reg_display(); break;
     case 'w': wp_display(); break;
@@ -83,15 +89,19 @@ static int cmd_info(char *args) {
 }
 
 static int cmd_x(char *args) {
+  if(args == NULL) {
+    printf("Need parameters!\n");
+    return 0;
+  } 
   char *str_end = args + strlen(args);
  /* extract the first argument */
   char *num = strtok(NULL, " ");
-  Assert(num != NULL,"Need parameters.");
   int n = atoi(num);
   char *addr_exp = num + strlen(num) + 1;
   if (addr_exp >= str_end) {
     addr_exp = NULL;
-    panic("Need parameters.");
+    printf("Need right parameters.\n");
+    return 0;
   } 
   vaddr_t addr = strtoul(addr_exp,NULL,16);
   for(int i=0;i<n;i++) {
@@ -117,8 +127,13 @@ static int cmd_x(char *args) {
 }
 
 static int cmd_p(char *args) {
-  bool *success = NULL;
-  expr(args,success);
+  if(args != NULL) {
+    bool success = true;
+    word_t val = expr(args,&success);
+    if(success) printf("$=%d\n",val);
+  }else {
+    printf("Need parameters!\n");
+  }
   return 0;
 }
 
