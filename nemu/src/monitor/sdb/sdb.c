@@ -26,6 +26,9 @@ static int is_batch_mode = false;
 
 void init_regex();
 void init_wp_pool();
+int new_wp(char* expr,bool * success);
+void free_wp(int num , bool * success);
+void wp_display();
 
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 static char* rl_gets() {
@@ -45,10 +48,6 @@ static char* rl_gets() {
   return line_read;
 }
 
-static void wp_display()
-{
-
-}
 
 static int cmd_c(char *args) {
   cpu_exec(-1);
@@ -130,10 +129,28 @@ static int cmd_p(char *args) {
   if(args != NULL) {
     bool success = true;
     word_t val = expr(args,&success);
-    if(success) printf("$=%d\n",val);
-  }else {
-    printf("Need parameters!\n");
-  }
+    if(success) printf("$ = 0x%08x (%d)\n",val,val);
+  }else printf("Need parameters!\n");
+  return 0;
+}
+
+static int cmd_w(char *args) {
+  if(args != NULL) {
+    bool success = true; 
+    int wid = new_wp(args,&success);
+    if(success) printf("Watchpoint %d : %s\n",wid,args);
+    else printf("Could not insert watchpoint!\n"); 
+  }else printf("Need parameters!\n"); 
+  return 0;
+}
+
+static int cmd_d(char *args) {
+  if(args != NULL) {
+    bool success = true;
+    int num = atoi(args);
+    free_wp(num,&success);
+    if(success) printf("Watchpoint %d has been sucessfuly deleted!\n",num);
+  }else printf("Need parameters!\n"); 
   return 0;
 }
 
@@ -152,6 +169,8 @@ static struct {
   { "info","Print the state of the program. The subcommands are 'r' for register and 'w' for watchpoint infomation.",cmd_info},
   { "x","Find the value of the expression EXPR, use the result as the starting memory address, and output N consecutive 4-byte outputs in hexadecimal.",cmd_x},
   { "p", "Calculate the value of the expression EXPR", cmd_p },
+  { "w", "Set watchpoint to stop execution whenever the value of the given expression changes", cmd_w },
+  { "d", "Delete the given num  watchpoint", cmd_d } 
 };
 
 #define NR_CMD ARRLEN(cmd_table)

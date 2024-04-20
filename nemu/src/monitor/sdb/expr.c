@@ -250,7 +250,7 @@ static bool check_expr(int p ,int q)  {
 word_t expr(char *e, bool *success) {
   memset(tokens,0,sizeof(tokens));
   if (!make_token(e)) {
-    *success = false;
+    if(success!=NULL)*success = false;
     return 0;
   }
 
@@ -271,7 +271,7 @@ word_t expr(char *e, bool *success) {
 
   if(nr_token == 0 || !check_brak(0,nr_token-1) ||!check_expr(0,nr_token-1)) {
     printf("A syntax error in expression!\n");
-    *success = false;
+    if(success!=NULL)*success = false;
     return 0;
   }  
 
