@@ -41,10 +41,18 @@ gdb: run-env
 	$(call git_commit, "gdb NEMU")
 	gdb -s $(BINARY) --args $(NEMU_EXEC)
 
+CODE_LINE_COUNT := $(shell find $(NEMU_HOME) -name "*.c" -o -name "*.h" | xargs grep -v "^\s*$$" | wc -l)
+count:
+	@echo "Total code lines: $(CODE_LINE_COUNT)"
+
+CODE_LINE_CHANGE := $(shell git diff master.. $(shell git branch --show-current) --stat | tail -n 1)
+pacount :
+	@echo "Total code changes : $(CODE_LINE_CHANGE)"	
+
 clean-tools = $(dir $(shell find ./tools -maxdepth 2 -mindepth 2 -name "Makefile"))
 $(clean-tools):
 	-@$(MAKE) -s -C $@ clean
 clean-tools: $(clean-tools)
 clean-all: clean distclean clean-tools
 
-.PHONY: run gdb run-env clean-tools clean-all $(clean-tools)
+.PHONY: run gdb run-env clean-tools clean-all count pacount $(clean-tools)  
