@@ -26,7 +26,7 @@ static int is_batch_mode = false;
 
 void init_regex();
 void init_wp_pool();
-int new_wp(char* expr,bool * success);
+int new_wp(char* expr , bool * success);
 void free_wp(int num , bool * success);
 void wp_display();
 
@@ -106,17 +106,9 @@ static int cmd_x(char *args) {
   for(int i=0;i<n;i++) {
     word_t val = vaddr_read(addr+i*4,4);
     if( i%4 == 0 ) {
-      #ifdef  CONFIG_ISA64
-        _Log(ANSI_FMT("0x%016x:", ANSI_FG_BLUE) ,addr+i*4);
-      #else
-        _Log(ANSI_FMT("0x%08x: ", ANSI_FG_BLUE) ,addr+i*4);
-      #endif
+      _Log(ANSI_FMT(FMT_WORD": ", ANSI_FG_BLUE) ,addr+i*4);
     }
-    #ifdef  CONFIG_ISA64
-      printf("0x%016x\t",val);
-    #else
-      printf("0x%08x\t",val);
-    #endif
+    printf(FMT_WORD"\t",val);
     if( i%4 == 3 ) {
       printf("\n"); 
     }
@@ -129,7 +121,7 @@ static int cmd_p(char *args) {
   if(args != NULL) {
     bool success = true;
     word_t val = expr(args,&success);
-    if(success) printf("$ = 0x%08x (%d)\n",val,val);
+    if(success) printf("$ = "FMT_WORD" (%d)\n",val,val);
   }else printf("Need parameters!\n");
   return 0;
 }

@@ -26,11 +26,7 @@ const char *regs[] = {
 
 void isa_reg_display() {
   for(int i=0;i< MUXDEF(CONFIG_RVE, 16, 32);i++) {
-    #ifdef CONFIG_ISA64 
-      printf("%s\t\t 0x%016x\t\t %d\n",reg_name(i),cpu.gpr[i],cpu.gpr[i]);
-    #else  
-      printf("%s\t\t 0x%08x\t\t %d\n",reg_name(i),cpu.gpr[i],cpu.gpr[i]); 
-    #endif
+    printf("%s\t\t "FMT_WORD"\t\t %d\n",reg_name(i),cpu.gpr[i],cpu.gpr[i]); 
   }
 }
 
