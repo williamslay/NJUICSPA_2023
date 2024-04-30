@@ -26,6 +26,7 @@ static int is_batch_mode = false;
 
 void init_regex();
 void init_wp_pool();
+void init_iringbuf();
 int new_wp(char* expr , bool * success);
 void free_wp(int num , bool * success);
 void wp_display();
@@ -157,12 +158,12 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
-  { "si","Let the program pause after executing N instructions in a single step.When N is not given, the default is 1.",cmd_si},
-  { "info","Print the state of the program. The subcommands are 'r' for register and 'w' for watchpoint infomation.",cmd_info},
-  { "x","Find the value of the expression EXPR, use the result as the starting memory address, and output N consecutive 4-byte outputs in hexadecimal.",cmd_x},
+  { "si","Let the program pause after executing N instructions in a single step.When N is not given, the default is 1",cmd_si},
+  { "info","Print the state of the program. The subcommands are 'r' for register and 'w' for watchpoint infomation",cmd_info},
+  { "x","Find the value of the expression EXPR, use the result as the starting memory address, and output N consecutive 4-byte outputs in hexadecimal",cmd_x},
   { "p", "Calculate the value of the expression EXPR", cmd_p },
   { "w", "Set watchpoint to stop execution whenever the value of the given expression changes", cmd_w },
-  { "d", "Delete the given num  watchpoint", cmd_d } 
+  { "d", "Delete a watchpoint based on the given watchpoint number", cmd_d } 
 };
 
 #define NR_CMD ARRLEN(cmd_table)
@@ -238,4 +239,7 @@ void init_sdb() {
 
   /* Initialize the watchpoint pool. */
   init_wp_pool();
+
+  /* Initialize the itrace ring buffer. */
+  init_iringbuf();
 }

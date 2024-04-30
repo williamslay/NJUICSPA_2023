@@ -34,7 +34,7 @@ void init_wp_pool() {
   for (int i = 0; i < NR_WP; i ++) {
     wp_pool[i].NO = i;
     memset(wp_pool[i].expr,0, sizeof(wp_pool[i].expr));
-    wp_pool[i].preval = 0; 
+    wp_pool[i].preval = -1; 
     wp_pool[i].hittime = 0;
     wp_pool[i].pre = (i == 0 ? NULL : &wp_pool[i - 1]);
     wp_pool[i].next = (i == NR_WP - 1 ? NULL : &wp_pool[i + 1]);
@@ -77,7 +77,7 @@ void free_wp(int num , bool * success) {
       /*reset and push back to the free_ list*/
       memset(temp->expr,0, sizeof(temp->expr));
       temp->hittime = 0;
-      temp->preval = 0;
+      temp->preval = -1;
       temp->pre = NULL;
       temp->next = free_;
       if(free_ != NULL)free_->pre = temp;

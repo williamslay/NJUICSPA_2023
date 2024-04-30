@@ -32,13 +32,20 @@ static bool g_print_step = false;
 
 void device_update();
 bool wp_test();
+void itra_write(char* itrace);
+void itra_log();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
-  if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
-  IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+
+#ifdef CONFIG_ITRACE
+if (g_print_step) puts(_this->logbuf); 
+itra_write(_this->logbuf);
+#endif
+
+IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
 #ifdef  CONFIG_WATCHPOINT
   if(wp_test()) {
     nemu_state.state = NEMU_STOP;
@@ -100,6 +107,8 @@ static void statistic() {
 
 void assert_fail_msg() {
   isa_reg_display();
+  printf("\n");
+  itra_log(); 
   statistic();
 }
 
@@ -124,6 +133,7 @@ void cpu_exec(uint64_t n) {
     case NEMU_RUNNING: nemu_state.state = NEMU_STOP; break;
     case NEMU_STOP :break;
     case NEMU_END: case NEMU_ABORT:
+    if(nemu_state.state ==  NEMU_ABORT) itra_log();
       Log("nemu: %s at pc = " FMT_WORD,
           (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :

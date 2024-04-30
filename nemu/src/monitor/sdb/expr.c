@@ -251,7 +251,7 @@ word_t expr(char *e, bool *success) {
   memset(tokens,0,sizeof(tokens));
   if (!make_token(e)) {
     if(success!=NULL)*success = false;
-    return 0;
+    return -1;
   }
 
   int certenType[]  = {'(','+','-','*','/',TK_AND,TK_NEQ,TK_EQ,DEREF};
@@ -272,7 +272,7 @@ word_t expr(char *e, bool *success) {
   if(nr_token == 0 || !check_brak(0,nr_token-1) ||!check_expr(0,nr_token-1)) {
     printf("A syntax error in expression!\n");
     if(success!=NULL)*success = false;
-    return 0;
+    return -1;
   }  
 
   return eval(0, nr_token-1);
