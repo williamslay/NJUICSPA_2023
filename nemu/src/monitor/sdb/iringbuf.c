@@ -40,8 +40,9 @@ void itra_write(char* itrace) {
     ptr = ptr->next;
 };
 
-void itra_log() {
-    printf(ANSI_FG_GREEN "ITraceRing will show %d instruction(s) traced before program crushes below." ANSI_NONE "\n",node_num);
+void itra_log(int assert_fail) {
+    printf(ANSI_FMT("ITraceRing will show %d instruction(s) traced before program crushes below.\n",ANSI_FG_GREEN ),node_num);
+    printf(ANSI_FG_BLUE"Notice that: the "ANSI_FG_RED "red one"ANSI_FG_BLUE" is the aborted instruction\nif there is not, it may be the next one\n"ANSI_NONE); 
     IT_NODE * temp = ptr;
     int k = BUFF_SIZE - node_num;
     while(k-- > 0) {
@@ -51,6 +52,8 @@ void itra_log() {
         printf("%s\n",temp->log_buff);
         temp = temp->next;
     }
-    printf(ANSI_FG_RED "%s" ANSI_NONE "\n",temp->log_buff);
+    /* if assert fail then the abort instruction is the next one*/
+    if(assert_fail) printf("%s\n" ,temp->log_buff); 
+    else printf(ANSI_FMT("%s\n" ,ANSI_FG_RED),temp->log_buff);
     printf("\n");
 };
