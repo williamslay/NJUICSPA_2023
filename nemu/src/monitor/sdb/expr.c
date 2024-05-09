@@ -13,15 +13,12 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
-#include <isa.h>
-#include <memory/vaddr.h>
+#include "sdb.h"
 
 /* We use the POSIX regex functions to process regular expressions.
  * Type 'man regex' for more information about POSIX regex functions.
  */
 #include <regex.h>
-#include <stdlib.h>
-#include <stdio.h>
 
 
 enum {
@@ -38,12 +35,12 @@ static struct rule {
   {"\\*", '*'},                     // times
   {"\\/", '/'},                     // divided
   {"0[xX][0-9a-fA-F]+",TK_HNUM},    // hexadecimal num
-  {"\\$\\$?[a-zA-Z0-9]+",TK_REG},       // reg name
-  {"[0-9]+",TK_DNUM},          // decimal num
+  {"\\$\\$?[a-zA-Z0-9]+",TK_REG},   // reg name
+  {"[0-9]+",TK_DNUM},               // decimal num
   {"\\(", '('},                     // left bracket
   {"\\)", ')'},                     // right bracket
-  {"&&", TK_AND},                    // and
-  {"!=", TK_NEQ},                    // not equal
+  {"&&", TK_AND},                   // and
+  {"!=", TK_NEQ},                   // not equal
   {"==", TK_EQ},                    // equal
 };
 
@@ -276,7 +273,6 @@ word_t expr(char *e, bool *success) {
   }  
 
   return eval(0, nr_token-1);
-
 }
 
 

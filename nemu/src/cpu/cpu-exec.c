@@ -33,7 +33,10 @@ static bool g_print_step = false;
 void device_update();
 bool wp_test();
 void itra_write(char* itrace);
-void itra_log();
+void itra_log(int assert_fail);
+void add_func_que(int type, vaddr_t now_addr,vaddr_t next_addr);
+void p_ftrace();
+extern int ftrace;
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE_COND
@@ -59,6 +62,14 @@ static void exec_once(Decode *s, vaddr_t pc) {
   s->snpc = pc;
   isa_exec_once(s);
   cpu.pc = s->dnpc;
+#ifdef CONFIG_FTRACE
+  if(ftrace && s->dnpc != s->snpc) {
+    if(s->isa.inst.val == 0x00008067) //riscv-32 ret decode;
+      add_func_que(1,pc,s->dnpc); 
+    else 
+      add_func_que(0,pc,s->dnpc); 
+  }
+#endif
 #ifdef CONFIG_ITRACE
   char *p = s->logbuf;
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
@@ -108,7 +119,10 @@ static void statistic() {
 void assert_fail_msg() {
   isa_reg_display();
   printf("\n");
-  itra_log(1); 
+  itra_log(1);
+#ifdef CONFIG_FTRACE
+  if(ftrace) p_ftrace();
+#endif 
   statistic();
 }
 
@@ -133,7 +147,13 @@ void cpu_exec(uint64_t n) {
     case NEMU_RUNNING: nemu_state.state = NEMU_STOP; break;
     case NEMU_STOP :break;
     case NEMU_END: case NEMU_ABORT:
-    if(nemu_state.state ==  NEMU_ABORT) itra_log(0);
+    if(nemu_state.state ==  NEMU_ABORT) {
+#ifdef CONFIG_FTRACE
+      if(ftrace) p_ftrace();
+#endif 
+      itra_log(0);
+    }
+      p_ftrace();
       Log("nemu: %s at pc = " FMT_WORD,
           (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :

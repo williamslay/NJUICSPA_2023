@@ -16,9 +16,17 @@
 #ifndef __SDB_H__
 #define __SDB_H__
 
+#include <isa.h>
 #include <common.h>
-#include <utils.h>
+#include <memory/vaddr.h>
 
 word_t expr(char *e, bool *success);
+void init_regex();
+void init_wp_pool();
+void init_iringbuf();
+int new_wp(char* expr , bool * success);
+void free_wp(int num , bool * success);
+void wp_display();
+void p_ftrace();
 
 #endif

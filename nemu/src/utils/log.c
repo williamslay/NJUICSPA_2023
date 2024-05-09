@@ -12,7 +12,6 @@
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
-
 #include <common.h>
 
 extern uint64_t g_nr_guest_inst;

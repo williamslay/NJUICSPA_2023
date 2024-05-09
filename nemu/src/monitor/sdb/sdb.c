@@ -13,23 +13,15 @@
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
 
-#include <isa.h>
 #include <cpu/cpu.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
 #include <limits.h>
 #include <utils.h>
-#include <memory/vaddr.h>
 
 static int is_batch_mode = false;
-
-void init_regex();
-void init_wp_pool();
-void init_iringbuf();
-int new_wp(char* expr , bool * success);
-void free_wp(int num , bool * success);
-void wp_display();
+extern int ftrace;
 
 /* We use the `readline' library to provide more flexibility to read from stdin. */
 static char* rl_gets() {
@@ -107,7 +99,7 @@ static int cmd_x(char *args) {
   for(int i=0;i<n;i++) {
     word_t val = vaddr_read(addr+i*4,4);
     if( i%4 == 0 ) {
-      _Log(ANSI_FMT(FMT_WORD": ", ANSI_FG_BLUE) ,addr+i*4);
+      printf(ANSI_FMT(FMT_WORD": ", ANSI_FG_BLUE) ,addr+i*4);
     }
     printf(FMT_WORD"\t",val);
     if( i%4 == 3 ) {
@@ -147,6 +139,15 @@ static int cmd_d(char *args) {
   return 0;
 }
 
+static int cmd_ft(char *args) {
+#ifdef CONFIG_FTRACE
+  if(ftrace) p_ftrace();
+  else printf("There is something wrong with your elf file!\n"); 
+#else
+  printf("This function has not been set yet!\n");
+#endif 
+  return 0;
+}
 
 static int cmd_help(char *args);
 
@@ -163,7 +164,8 @@ static struct {
   { "x","Find the value of the expression EXPR, use the result as the starting memory address, and output N consecutive 4-byte outputs in hexadecimal",cmd_x},
   { "p", "Calculate the value of the expression EXPR", cmd_p },
   { "w", "Set watchpoint to stop execution whenever the value of the given expression changes", cmd_w },
-  { "d", "Delete a watchpoint based on the given watchpoint number", cmd_d } 
+  { "d", "Delete a watchpoint based on the given watchpoint number", cmd_d },
+  { "ftrace", "Show the function traces if you have set this function", cmd_ft }  
 };
 
 #define NR_CMD ARRLEN(cmd_table)
