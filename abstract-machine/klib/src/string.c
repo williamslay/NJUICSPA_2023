@@ -16,6 +16,7 @@ char *strcpy(char *dst, const char *src) {
     dst[i] = src[i];
     i++;
   }
+  dst[i] = '\0';
   return dst; 
 }
 
@@ -39,22 +40,34 @@ char *strcat(char *dst, const char *src) {
 
 int strcmp(const char *s1, const char *s2) {
   size_t s1_val = 0,s2_val = 0;
-  size_t i;
-  for (i = 0 ; s1[i] != '\0' ; i++) 
+  size_t i = 0, j = 0;
+  while(s1[i] != '\0' && s2[i] != '\0') {
+    if(s1[i] != s2[i]) return s1[i] > s2[i] ? 1 : -1;
+    i++;
+  }
+  j = i;
+  for (; s1[i] != '\0'; i++) 
     s1_val += s1[i];
-  for (i = 0 ; s2[i] != '\0' ; i++) 
-    s2_val += s2[i]; 
-  return s1_val - s2_val;
+  for (; s2[j] != '\0'; j++) 
+    s2_val += s2[j]; 
+  if(s1_val == s2_val) return 0;
+  return s1_val  > s2_val ? 1 :-1;
 }
 
 int strncmp(const char *s1, const char *s2, size_t n) {
   size_t s1_val = 0,s2_val = 0;
-  size_t i;
-  for (i = 0 ; i < n && s1[i] != '\0' ; i++) 
+  size_t i = 0 ,j = 0;
+  while(s1[i] != '\0' && s2[i] != '\0' && i < n)  {
+    if(s1[i] != s2[i]) return s1[i] > s2[i] ? 1 :-1;
+    i++; 
+  }
+  j = i;
+  for (; i < n && s1[i] != '\0' ; i++) 
     s1_val += s1[i];
-  for (i = 0 ; i < n && s2[i] != '\0' ; i++) 
-    s2_val += s2[i]; 
-  return (int) (s1_val - s2_val);
+  for (; j < n && s2[j] != '\0' ; j++) 
+    s2_val += s2[j];
+  if(s1_val == s2_val) return 0; 
+  return s1_val  > s2_val ? 1 :-1;
 }
 
 void *memset(void *s, int c, size_t n) {

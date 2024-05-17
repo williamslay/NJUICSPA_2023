@@ -9,23 +9,20 @@ int printf(const char *fmt, ...) {
   panic("Not implemented");
 }
 
-int vsprintf(char *out, const char *fmt, va_list ap) {
-  panic("Not implemented");
-}
-
-char * intToCharArray(int num, char *result) {
+int intToCharArray(int num, char *result) {
   int i = 0;
   int isNegative = 0;
+  long long n = num;
   // Handle negative numbers
-  if (num < 0) {
+  if (n < 0) {
     isNegative = 1;
-    num = -num;
+    n = -n;
   }
   // Convert digits to characters in reverse order
   do {
-    result[i++] = num % 10 + '0';
-    num /= 10;
-  } while (num > 0);
+    result[i++] = n % 10 + '0';
+    n /= 10;
+  } while (n > 0);
   // Add negative sign if necessary
   if (isNegative) {
     result[i++] = '-';
@@ -40,13 +37,12 @@ char * intToCharArray(int num, char *result) {
     start++;
     end--;
   }
-  return result + i ;
+  return i ;
 }
-/*a function dosen't deal with error , just pass the hello-str.c test*/ 
-int sprintf(char *out, const char *fmt, ...) { 
+
+/*just implement printf string or interger , and the sprintf family don't process error*/
+int vsprintf(char *out, const char *fmt, va_list ap) {
   char * temp = out;
-  va_list ap;
-  va_start(ap, fmt);
   while (*fmt != '\0') {
     switch (*fmt) {
       case '%' : 
@@ -65,7 +61,7 @@ int sprintf(char *out, const char *fmt, ...) {
       case 'd':              /* int or 'd' */
         if(*(fmt-1) == '%') {
           int num = va_arg(ap, int);
-          temp = intToCharArray(num , temp) ;
+          temp += intToCharArray(num , temp) ;
           fmt++;
         } else *temp++ = *fmt++;  
         break;
@@ -73,16 +69,87 @@ int sprintf(char *out, const char *fmt, ...) {
     }
   }
   *temp = '\0';
-  va_end(ap);
-  return strlen(out);
+  return strlen(out); 
 }
 
-int snprintf(char *out, size_t n, const char *fmt, ...) {
-  panic("Not implemented");
+int sprintf(char *out, const char *fmt, ...) {  
+  int res = 0;
+  va_list ap;
+  va_start(ap, fmt);
+  res = vsprintf(out,fmt,ap);
+  va_end(ap);
+  return res;
+}
+
+int intToCharArray_s(int num, char *result,int space) {
+  int i = 0;
+  int isNegative = 0;
+  long long n = num;
+  char temp[12];
+
+  if (n < 0) {
+    isNegative = 1;
+    n = -n;
+  }
+  do {
+    temp[i++] = n % 10 + '0';
+    n /= 10;
+  } while (n > 0);
+  if (isNegative) {
+    temp[i++] = '-';
+  }
+  int start = 0;
+  int end = i - 1;
+  while (start < end) {
+    char t = temp[start];
+    temp[start] = temp[end];
+    temp[end] = t;
+    start++;
+    end--;
+  }
+  int res = i > space ? space :i;
+  memcpy(result,temp,res);
+  return i;
 }
 
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
-  panic("Not implemented");
+  int i = 0;
+  while (*fmt != '\0' && i < n) {
+    switch (*fmt) {
+      case '%' : 
+        if(*(fmt-1) == '%') out[i++]= *fmt++;
+        else fmt++;
+        break;
+      case 's':              /* string  or 's'*/
+        if(*(fmt-1) == '%') {
+          char *s = va_arg(ap, char *);
+          int j = 0,len = strlen(s);
+          while(j<len) 
+            out[i++] = s[j++];
+          fmt++;
+        } else out[i++] = *fmt++; 
+        break;
+      case 'd':              /* int or 'd' */
+        if(*(fmt-1) == '%') {
+          int num = va_arg(ap, int);
+          i += intToCharArray_s(num , out+i ,n-i) ; 
+          fmt++;
+        } else out[i++] = *fmt++;  
+        break;
+      default :  out[i++] = *fmt++; break;
+    }
+  }
+  if(i<n) out[i] = '\0';
+  else out[n-1] = '\0'; 
+  return i; 
 }
 
+int snprintf(char *out, size_t n, const char *fmt, ...) {
+  int res = 0;
+  va_list ap;
+  va_start(ap, fmt);
+  res = vsnprintf(out,n,fmt,ap);
+  va_end(ap);
+  return res;
+}
 #endif
