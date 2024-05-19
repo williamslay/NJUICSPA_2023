@@ -49,6 +49,7 @@ itra_write(_this->logbuf);
 #endif
 
 IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+
 #ifdef  CONFIG_WATCHPOINT
   if(wp_test()) {
     nemu_state.state = NEMU_STOP;
@@ -153,7 +154,6 @@ void cpu_exec(uint64_t n) {
 #endif 
       itra_log(0);
     }
-      p_ftrace();
       Log("nemu: %s at pc = " FMT_WORD,
           (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :

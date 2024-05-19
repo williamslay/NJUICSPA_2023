@@ -18,6 +18,8 @@
 #include <utils.h>
 #include <elf.h>
 
+#ifdef CONFIG_FTRACE
+
 #define INST_LENGTH 4 //for riscv-32/64,mips32
 #define lOG_LENGTH 256
 #define FUCNAME_LENGTH 128
@@ -195,3 +197,5 @@ void p_ftrace() {
     temp = temp->next;
   }
 }
+
+#endif
