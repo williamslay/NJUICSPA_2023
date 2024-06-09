@@ -5,8 +5,17 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
-int printf(const char *fmt, ...) {
-  panic("Not implemented");
+#define BUFFER 65536 //printf buffer length
+static char data[BUFFER] = {0};
+
+int printf(const char *fmt, ...) { 
+  memset(data, 0, BUFFER * sizeof(char)); 
+  va_list args;
+  va_start(args, fmt);
+  int ret = sprintf(data,fmt, va_arg(args, int));
+  va_end(args);
+  for(int i = 0;i<ret;i++) putch(data[i]);
+  return ret;
 }
 
 int intToCharArray(int num, char *result) {
