@@ -8,17 +8,18 @@
 #define BUFFER 65536 //printf buffer length
 static char data[BUFFER] = {0};
 
+//still wait malloc implement for dynamic memory allocation
 int printf(const char *fmt, ...) { 
   memset(data, 0, BUFFER * sizeof(char)); 
   va_list args;
   va_start(args, fmt);
-  int ret = sprintf(data,fmt, va_arg(args, int));
+  int ret = vsprintf(data,fmt,args);
   va_end(args);
-  for(int i = 0;i<ret;i++) putch(data[i]);
-  return ret;
+  if(ret > 0 && ret < BUFFER)  for(int i = 0;i<ret;i++) putch(data[i]);
+  return ret >= BUFFER ? -1 : ret;
 }
 
-int intToCharArray(int num, char *result) {
+static inline int intToCharArray(int num, char *result) {
   int i = 0;
   int isNegative = 0;
   long long n = num;
@@ -49,7 +50,7 @@ int intToCharArray(int num, char *result) {
   return i ;
 }
 
-/*just implement printf string or interger , and the sprintf family don't process error*/
+/*just implement printf string or interger , and the sprintf family process simple error*/
 int vsprintf(char *out, const char *fmt, va_list ap) {
   char * temp = out;
   while (*fmt != '\0') {
@@ -57,6 +58,12 @@ int vsprintf(char *out, const char *fmt, va_list ap) {
       case '%' : 
         if(*(fmt-1) == '%') *temp++ = *fmt++;
         else fmt++;
+        break;
+      case 'c':              /* char  or 'c'*/
+        if(*(fmt-1) == '%') {
+          *temp++ = (char)(va_arg(ap, int) & 0xFF);
+          fmt++;
+        } else *temp++ = *fmt++; 
         break;
       case 's':              /* string  or 's'*/
         if(*(fmt-1) == '%') {
@@ -90,7 +97,7 @@ int sprintf(char *out, const char *fmt, ...) {
   return res;
 }
 
-int intToCharArray_s(int num, char *result,int space) {
+static inline int intToCharArray_s(int num, char *result,int space) {
   int i = 0;
   int isNegative = 0;
   long long n = num;
@@ -122,12 +129,18 @@ int intToCharArray_s(int num, char *result,int space) {
 }
 
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
-  int i = 0;
+  int i = 0; 
   while (*fmt != '\0' && i < n) {
     switch (*fmt) {
       case '%' : 
         if(*(fmt-1) == '%') out[i++]= *fmt++;
         else fmt++;
+        break;
+      case 'c':              /* char  or 'c'*/
+        if(*(fmt-1) == '%') {
+          out[i++] = (char)(va_arg(ap, int)& 0xFF);
+          fmt++;
+        } else out[i++] = *fmt++; 
         break;
       case 's':              /* string  or 's'*/
         if(*(fmt-1) == '%') {
