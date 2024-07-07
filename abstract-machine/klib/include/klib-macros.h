@@ -36,4 +36,5 @@
 
 #define panic(s) panic_on(1, s)
 
+#define ARRLEN(arr) (int)(sizeof(arr) / sizeof(arr[0]))
 #endif
