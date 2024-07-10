@@ -122,7 +122,9 @@ static void statistic() {
 void assert_fail_msg() {
   isa_reg_display();
   printf("\n");
+#ifdef CONFIG_ITRACE
   itra_log(1);
+#endif 
 #ifdef CONFIG_FTRACE
   if(ftrace) p_ftrace();
 #endif 
@@ -153,8 +155,10 @@ void cpu_exec(uint64_t n) {
     if(nemu_state.state ==  NEMU_ABORT) {
 #ifdef CONFIG_FTRACE
       if(ftrace) p_ftrace();
-#endif 
+#endif
+#ifdef CONFIG_ITRACE 
       itra_log(0);
+#endif
     }
       Log("nemu: %s at pc = " FMT_WORD,
           (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
