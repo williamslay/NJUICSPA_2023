@@ -4,9 +4,8 @@
 #include <stdarg.h>
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
-#define NOPTIMIZE  __attribute__((optimize("O0")))
 //printf buffer length
-#define PBUFFER 65536 
+#define PBUFFER 1024 
 //temp buffer length
 #define BUFFER 256  
 //The order in the array cannot be changed
@@ -253,7 +252,7 @@ static inline bool putFormatSpecifer(char*out,const char **fmt,va_list ap) {
   return true;
 }
 
-/*just implement printf string or interger , and the sprintf family process simple error*/
+/*the sprintf family process simple error*/
 int vsprintf(char *out, const char *fmt, va_list ap) {
   char * temp = out;
   char data[BUFFER] = {0};

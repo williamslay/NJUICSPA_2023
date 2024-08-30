@@ -6,8 +6,7 @@ static uint64_t boot_time = 0;
 static void get_time(uint64_t *time) {
   uint32_t low = inl(RTC_ADDR);
   uint32_t high = inl(RTC_ADDR + 4);
-  *time = (uint64_t)high << 32;
-  *time += (uint64_t)low;
+  *time = ((uint64_t)high << 32) + (uint64_t)low;
  }
 
 void __am_timer_init() {

@@ -53,9 +53,9 @@ void init_mem() {
 word_t paddr_read(paddr_t addr, int len) {
   if (likely(in_pmem(addr))) return pmem_read(addr, len);
   #ifdef CONFIG_MTRACE
-      printf(ANSI_FMT("read physical memory " FMT_PADDR " at pc = "FMT_PADDR"\n",ANSI_FG_BLUE) ,addr,cpu.pc);
+      printf(ANSI_FMT("\nread physical memory " FMT_PADDR " at pc = "FMT_PADDR"\n",ANSI_FG_BLUE) ,addr,cpu.pc);
       #ifdef CONFIG_MTRACE_COND 
-      if(MTRACE_COND) {log_write("read physical memory " FMT_PADDR " at pc = "FMT_PADDR"\n",addr,cpu.pc);}
+      if(MTRACE_COND) {log_write("\nread physical memory " FMT_PADDR " at pc = "FMT_PADDR"\n",addr,cpu.pc);}
       #endif
   #endif 
   IFDEF(CONFIG_DEVICE, return mmio_read(addr, len));
@@ -66,9 +66,9 @@ word_t paddr_read(paddr_t addr, int len) {
 void paddr_write(paddr_t addr, int len, word_t data) {
   if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
    #ifdef CONFIG_MTRACE
-      printf(ANSI_FMT("write physical memory " FMT_PADDR " at pc = "FMT_PADDR"\n" ,ANSI_FG_BLUE) ,addr,cpu.pc);
+      printf(ANSI_FMT("\nwrite physical memory " FMT_PADDR " at pc = "FMT_PADDR"\n" ,ANSI_FG_BLUE) ,addr,cpu.pc);
       #ifdef CONFIG_MTRACE_COND 
-      if(MTRACE_COND) {log_write("write physical memory " FMT_PADDR " at pc = "FMT_PADDR"\n",addr,cpu.pc);}
+      if(MTRACE_COND) {log_write("\nwrite physical memory " FMT_PADDR " at pc = "FMT_PADDR"\n",addr,cpu.pc);}
       #endif
   #endif 
   IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
