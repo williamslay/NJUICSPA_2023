@@ -19,7 +19,7 @@ include $(NEMU_HOME)/scripts/build.mk
 include $(NEMU_HOME)/tools/difftest.mk
 
 compile_git:
-	$(call git_commit, "compile NEMU")
+	@echo "Compiling NEMU..."
 $(BINARY):: compile_git
 
 # Some convenient rules
@@ -31,23 +31,32 @@ override ARGS += $(ARGS_DIFF)
 IMG ?=
 NEMU_EXEC := $(BINARY) $(ARGS) $(IMG)
 
+TARGET_DIR := $(NEMU_HOME)
+CODE_LINE_COUNT := $(shell find $(NEMU_HOME) -name "*.c" -o -name "*.h" | xargs grep -v "^\s*$$" | wc -l)
+
+ifeq ($(shell pwd), $(TARGET_DIR))
+    CODE_LINE_CHANGE := $(shell git diff master..$(shell git branch --show-current) --stat | tail -n 1 || echo "No changes")
+else
+    CODE_LINE_CHANGE :=
+    $(info Not in the specified directory: $(TARGET_DIR))
+endif
+
+
 run-env: $(BINARY) $(DIFF_REF_SO)
 
 run: run-env
-	$(call git_commit, "run NEMU")
+	@echo "Running NEMU..."
 	$(NEMU_EXEC)
 
 gdb: run-env
-	$(call git_commit, "gdb NEMU")
+	@echo "Starting GDB NEMU..."
 	gdb -s $(BINARY) --args $(NEMU_EXEC)
 
-CODE_LINE_COUNT := $(shell find $(NEMU_HOME) -name "*.c" -o -name "*.h" | xargs grep -v "^\s*$$" | wc -l)
 count:
 	@echo "Total code lines: $(CODE_LINE_COUNT)"
 
-CODE_LINE_CHANGE := $(shell git diff master.. $(shell git branch --show-current) --stat | tail -n 1)
 pacount :
-	@echo "Total code changes : $(CODE_LINE_CHANGE)"	
+	@echo "Total code changes : $(CODE_LINE_CHANGE)"
 
 clean-tools = $(dir $(shell find ./tools -maxdepth 2 -mindepth 2 -name "Makefile"))
 $(clean-tools):
@@ -55,4 +64,4 @@ $(clean-tools):
 clean-tools: $(clean-tools)
 clean-all: clean distclean clean-tools
 
-.PHONY: run gdb run-env clean-tools clean-all count pacount $(clean-tools)  
+.PHONY: run gdb run-env clean-tools clean-all count pacount $(clean-tools)
