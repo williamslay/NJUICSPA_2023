@@ -5,11 +5,11 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 //printf buffer length
-#define PBUFFER 1024 
+#define PBUFFER 2048
 //temp buffer length
-#define BUFFER 256  
+#define BUFFER 128
 //The order in the array cannot be changed
-static const char flags[] = {'+',' ', '#','0'};
+static const char signflags[] = {'+',' ', '#','0'};
 
 typedef union {
     int intValue;
@@ -20,35 +20,67 @@ typedef union {
     bool percent;
 } DataValue;
 
-enum {
-  TY_INT,TY_UINT,TY_UINT_X,TY_STR,TY_CHAR,TY_PER,TY_POINTER
-};
+ typedef enum {
+  TY_INT,
+  TY_UINT,
+  TY_UINT_X,
+  TY_STR,
+  TY_CHAR,
+  TY_PER,
+  TY_POINTER
+} specifierType;
+
 static struct specifier {
   const char specifer;
-  int type_val;
+  specifierType type_val;
 } specifiers [] = {
-  {'d',TY_INT},
-  {'i',TY_INT},
-  {'u',TY_UINT},
-  {'x',TY_UINT_X}, 
-  {'p',TY_POINTER},
-  {'s',TY_STR},
-  {'c',TY_CHAR},
-  {'%',TY_PER} 
+  {'d', TY_INT},
+  {'i', TY_INT},
+  {'u', TY_UINT},
+  {'x', TY_UINT_X},
+  {'p', TY_POINTER},
+  {'s', TY_STR},
+  {'c', TY_CHAR},
+  {'%', TY_PER}
   };
 
-#define NR_FLAG ARRLEN(flags)
+#define NR_FLAG ARRLEN(signflags)
 #define NR_SPEC ARRLEN(specifiers)
 
+#define PRINTF_REFRESH_VALIST(ap, ap_type)  \
+switch(ap_type) {                           \
+    case TY_INT:                            \
+      va_arg(ap, int);                      \
+      break;                                \
+    case TY_UINT: case TY_UINT_X:           \
+      va_arg(ap, unsigned int);             \
+      break;                                \
+    case TY_CHAR:                           \
+      va_arg(ap, int);                      \
+      break;                                \
+    case TY_STR:                            \
+      va_arg(ap, char *);                   \
+      break;                                \
+    case TY_POINTER:                        \
+      va_arg(ap, void *);                   \
+      break;                                \
+    case TY_PER:                            \
+      break;                                \
+}                                           \
+
 //still wait malloc implement for dynamic memory allocation
-int printf(const char *fmt, ...) { 
+int printf(const char *fmt, ...) {
   char pBuffer[PBUFFER] = {0};
   va_list args;
   va_start(args, fmt);
-  int ret = vsprintf(pBuffer,fmt,args);
+  int ret = vsprintf(pBuffer, fmt, args);
   va_end(args);
-  if(ret > 0 && ret < BUFFER)  for(int i = 0;i<ret;i++) putch(pBuffer[i]);
-  return ret >= BUFFER ? -1 : ret;
+  if(ret < 0) return ret;
+  int i = 0;
+  while(pBuffer[i] != '\0') {
+    putch(pBuffer[i++]);
+  }
+  return i;
 }
 
 static inline int uintToCharArray(unsigned int num, char *result, bool space_zero, int width) {
@@ -73,18 +105,18 @@ static inline int uintToCharArray(unsigned int num, char *result, bool space_zer
     int tmp = width - i;
     memmove(result+tmp,result,i);
     if(space_zero) memset(result,'0',tmp);
-    else memset(result,' ',tmp); 
+    else memset(result,' ',tmp);
   }
-  return i < width ? width : i; 
+  return i < width ? width : i;
 }
 
-static inline int uintToXCharArray(unsigned int num, char *result,bool space_x, bool space_zero, int width) {
+static inline int uintToXCharArray(unsigned int num, char *result, bool space_x, bool space_zero, unsigned int width) {
   int i = 0;
   int len = 0;
   if(space_x) {
     result[i++] = '0';
-    result[i++] = 'x'; 
-  } 
+    result[i++] = 'x';
+  }
   int start = i;
   do{
     int digit = num % 16;
@@ -108,79 +140,61 @@ static inline int uintToXCharArray(unsigned int num, char *result,bool space_x, 
     int dif = width - i;
     if(space_zero) {
       memmove(result+2+dif,result+2,len);
-      memset(result+2,'0',dif); 
+      memset(result+2,'0',dif);
     }else{
       memmove(result+dif,result,i);
-      memset(result,' ',dif); 
-    }  
+      memset(result,' ',dif);
+    }
   }
-  return i < width ? width : i;  
+  return i < width ? width : i;
 }
 
-static inline bool setFlags(bool* pFlags, size_t size,const char **fmt) {
+static inline bool setFlags(bool* pFlags, const char *fmt, unsigned int fmtPos) {
   bool ret = false;
   for(int i = 0;i<NR_FLAG;i++) {
-    if(**fmt == flags[i]) {
+    if(fmt[fmtPos] == signflags[i]) {
       ret = true;
       pFlags[i] = true;
-      (*fmt)++;
       break;
     }
   }
   return ret;
 }
 
-static inline void setValue(const char **fmt , int* preValue) {
-  int value = *preValue; 
-  while(**fmt >= '0' && **fmt <= '9') {
-    value = value * 10 + (**fmt - '0');
-    (*fmt)++;
-  }; 
-  *preValue = value;
+static inline int setValue(const char *fmt, unsigned int *val) {
+  int fmtLen = 0;
+  unsigned int value = 0;
+  while(fmt[fmtLen] >= '0' && fmt[fmtLen] <= '9') {
+    value = value * 10 + (fmt[fmtLen] - '0');
+    fmtLen++;
+  };
+  *val = value;
+  return fmtLen;
 }
 
-static inline bool setSpecifer(int* type,const char **fmt) {
+static inline bool setSpecifer(specifierType *type, const char *fmt, unsigned int fmtPos) {
   bool res = false;
   for(int i = 0;i < NR_SPEC ;i++) {
-    if(**fmt == specifiers[i].specifer) {
+    if(fmt[fmtPos] == specifiers[i].specifer) {
       *type = specifiers[i].type_val;
       res = true;
-      (*fmt)++;
-      break;
+      return res;
     }
   }
   return res;
 }
 
-static inline void getValue(DataValue *value, int type, va_list ap) {
-  switch(type) {
-    case TY_INT:
-      value->intValue = va_arg(ap, int);
-      break;
-    case TY_UINT: case TY_UINT_X:
-      value->unsignedIntValue = va_arg(ap, unsigned int); 
-      break;
-    case TY_CHAR:
-      value->c = (char)(va_arg(ap, int)& 0xFF); 
-      break;
-    case TY_STR:
-      value->str = va_arg(ap, char *); 
-      break;
-    case TY_POINTER:
-      value->ptr = va_arg(ap, void *); 
-      break;
-    case TY_PER:
-      value->percent = true;
-      break; 
-  } 
-}
+// void getValue(value, int type, va_list ap) {
 
-static inline int transStr(char* str, DataValue *value, int type, bool* pFlags,int width,int precision) {
+// }
+
+static inline int transStr(char* str, DataValue *value, specifierType type, bool* pFlags, unsigned int width, unsigned int precision) {
   int pos = 0;
-  bool sign = * (pFlags) ;
-  bool space = * (pFlags + 1);
-  bool space_x = * (pFlags + 2);
-  bool space_zero = * (pFlags + 3);
+  if (!str) return -1;
+  bool sign = *(pFlags) ;
+  bool space = *(pFlags + 1);
+  bool space_x = *(pFlags + 2);
+  bool space_zero = *(pFlags + 3);
   if(space) str[pos++] = ' ';
   switch (type) {
     case TY_INT:
@@ -189,27 +203,27 @@ static inline int transStr(char* str, DataValue *value, int type, bool* pFlags,i
           *str = '+';
           if(!space) pos++;
         }
-        pos += uintToCharArray(value->intValue,str+pos,space_zero,width);  
+        pos += uintToCharArray(value->intValue, str+pos, space_zero, width);
       }else {
-        *str = '-'; 
+        *str = '-';
         if(!space) pos++;
-        pos += uintToCharArray(-value->intValue,str+pos,space_zero,width);
+        pos += uintToCharArray(-value->intValue, str+pos, space_zero, width);
       }
       break;
-    case TY_UINT: 
-      pos += uintToCharArray(value->unsignedIntValue,str+pos,space_zero,width); 
+    case TY_UINT:
+      pos += uintToCharArray(value->unsignedIntValue, str+pos, space_zero, width);
       break;
     case TY_POINTER:
-      pos += uintToXCharArray(*(unsigned int*) value->ptr,str+pos,true,space_zero,width); 
-      break; 
+      pos += uintToXCharArray((uintptr_t) value->ptr, str+pos, true, space_zero, width);
+      break;
     case TY_UINT_X:
-      pos += uintToXCharArray(value->unsignedIntValue,str+pos,space_x,space_zero,width); 
+      pos += uintToXCharArray(value->unsignedIntValue, str+pos, space_x, space_zero, width);
       break;
     case TY_PER:
       str[pos++] = '%';
       break;
     case TY_CHAR:
-      while(pos < width -1) {
+      while(pos < (int)(width -1)) {
         str[pos++] = ' ';
       }
       str[pos++] = value->c;
@@ -222,114 +236,146 @@ static inline int transStr(char* str, DataValue *value, int type, bool* pFlags,i
       break;
     }
   }
-  str[pos] = '\0'; 
+  str[pos] = '\0';
   return pos;
 }
 
-static inline bool putFormatSpecifer(char*out,const char **fmt,va_list ap) {
-  int type = TY_INT; 
+static inline int putFormatSpecifer(char*out, const char *fmt, unsigned int fmtPos, va_list ap, specifierType *ap_type) {
+  if (!out || !fmt) return -1;
+  int pos = 0;
+  int ret = 0;
+  DataValue value;
+  specifierType type = TY_INT;
+  const char* curFmt = fmt + fmtPos;
   bool pFlags[NR_FLAG] = {false};
-  int width = 0; 
-  int precision = 256;
+  unsigned int width = 0;
+  unsigned int precision = 256;
   // set the flags
-  while(setFlags(pFlags,NR_FLAG,fmt));
+  while(setFlags(pFlags, curFmt, pos)) {
+    pos++;
+  };
   // set the width
-  if(** fmt >= '0' && **fmt <= '9') setValue(fmt,&width);
+  if(curFmt[pos] >= '0' && curFmt[pos] <= '9')  pos += setValue(curFmt + pos, &width);
   // set the precesion
-  if(**fmt == '.') {
-    (*fmt)++;
-    precision = 0;
-    setValue(fmt,&precision);
+  if(curFmt[pos] == '.') {
+    pos++;
+    pos += setValue(curFmt + pos, &precision);
   }
   // set the specifer
-  bool res = setSpecifer(&type,fmt);
-  if(!res) return false;
+  if(setSpecifer(&type, curFmt, pos)) {
+    pos++;
+  } else {
+    return -1;
+  }
+  *ap_type = type;
   // get the valist value
-  DataValue value;
-  getValue(&value,type,ap);
+  switch(type) {
+    case TY_INT:
+      value.intValue = va_arg(ap, int);
+      break;
+    case TY_UINT: case TY_UINT_X:
+      value.unsignedIntValue = va_arg(ap, unsigned int);
+      break;
+    case TY_CHAR:
+      value.c = (char)(va_arg(ap, int)& 0xFF);
+      break;
+    case TY_STR:
+      value.str = va_arg(ap, char *);
+      break;
+    case TY_POINTER:
+      value.ptr = va_arg(ap, void *);
+      break;
+    case TY_PER:
+      value.percent = true;
+      break;
+  }
   // transfer int to str
-  transStr(out,&value,type,pFlags,width,precision);
-  return true;
+  ret = transStr(out, &value, type, pFlags, width, precision);
+  return ret == -1 ? -1 : pos;
 }
 
-/*the sprintf family process simple error*/
 int vsprintf(char *out, const char *fmt, va_list ap) {
-  char * temp = out;
+  if (!out || !fmt) return -1;
+  unsigned int outPos = 0;
+  unsigned int fmtPos = 0;
   char data[BUFFER] = {0};
   bool symbol = false;
-  while (*fmt != '\0') {
-    switch (symbol) {
-      case true :
-        if(putFormatSpecifer(data,&fmt,ap)){
-          int dataPos = 0;
-          while(data[dataPos] != '\0') *temp++ = data[dataPos++];
-          symbol = false;
-        }else return -1;
-        break;
-      case false :
-        if(*fmt == '%') {
+  while (fmt[fmtPos] != '\0') {
+    if (symbol) {
+      specifierType ap_type = TY_INT;
+      va_list ap_copy;
+      va_copy(ap_copy, ap);
+      int ret = putFormatSpecifer(data, fmt, fmtPos, ap_copy, &ap_type);
+      va_end(ap_copy);
+      if(ret != -1){
+        int dataPos = 0;
+        while(data[dataPos] != '\0') out[outPos++] = data[dataPos++];
+        fmtPos += ret;
+        symbol = false;
+        PRINTF_REFRESH_VALIST(ap, ap_type);
+      }else return ret;
+    } else {
+      if(fmt[fmtPos] == '%') {
           symbol = true;
-          fmt++;
-        }else *temp++ = *fmt++; 
-        break; 
+          fmtPos++;
+      }else out[outPos++] = fmt[fmtPos++];
     }
   }
-  *temp = '\0';
-  return strlen(out); 
+  out[outPos] = '\0';
+  return outPos;
 }
 
-int sprintf(char *out, const char *fmt, ...) {  
+int sprintf(char *out, const char *fmt, ...) {
   int res = 0;
   va_list ap;
   va_start(ap, fmt);
-  res = vsprintf(out,fmt,ap);
+  res = vsprintf(out, fmt, ap);
   va_end(ap);
   return res;
 }
 
 int vsnprintf(char *out, size_t n, const char *fmt, va_list ap) {
-  int pos = 0;
+  if (!out || !fmt) return -1;
+  unsigned int outPos = 0;
+  unsigned int fmtPos = 0;
   char data[BUFFER] = {0};
-  bool symbol = false; 
-  while (*fmt != '\0') {
-    switch (symbol) {
-      case true :
-        if(putFormatSpecifer(data,&fmt,ap)){
-          int dataPos = 0;
-          while(data[dataPos] != '\0') {
-            if (pos < n - 1) out[pos++] = data[dataPos++];
-            else{
-              pos++;
-              dataPos++;
-            } 
-          }
-          symbol = false;
-        }else return -1;
-        break;
-      case false :
-        if(*fmt == '%') {
+  bool symbol = false;
+  while (fmt[fmtPos] != '\0') {
+    if (symbol) {
+      specifierType ap_type = TY_INT;
+      va_list ap_copy;
+      va_copy(ap_copy, ap);
+      int ret = putFormatSpecifer(data, fmt, fmtPos, ap_copy, &ap_type);
+      va_end(ap_copy);
+      if(ret != -1) {
+        int dataPos = 0;
+        while(data[dataPos] != '\0') {
+          if (outPos < n - 1) out[outPos++] = data[dataPos++];
+          else break;
+        }
+        fmtPos += ret;
+        symbol = false;
+        PRINTF_REFRESH_VALIST(ap, ap_type);
+      }else return ret;
+    } else {
+      if(fmt[fmtPos] == '%') {
           symbol = true;
-          fmt++;
-        }else{ 
-          if (pos < n - 1) out[pos++] = *fmt++;
-          else {
-            pos++;
-            fmt++; 
-          } 
-        } 
-        break; 
+          fmtPos++;
+        }else{
+          if (outPos < n - 1) out[outPos++] = fmt[fmtPos++];
+          else break;
+        }
     }
   }
-  int len = pos > n - 1 ? n - 1 : pos;
-  out[len] = '\0';
-  return pos;
+  out[outPos] = '\0';
+  return outPos;
 }
 
 int snprintf(char *out, size_t n, const char *fmt, ...) {
   int res = 0;
   va_list ap;
   va_start(ap, fmt);
-  res = vsnprintf(out,n,fmt,ap);
+  res = vsnprintf(out, n, fmt, ap);
   va_end(ap);
   return res;
 }
