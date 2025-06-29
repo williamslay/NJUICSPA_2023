@@ -84,7 +84,7 @@ static int cmd_x(char *args) {
   if(args == NULL) {
     printf("Need parameters!\n");
     return 0;
-  } 
+  }
   char *str_end = args + strlen(args);
  /* extract the first argument */
   char *num = strtok(NULL, " ");
@@ -94,7 +94,7 @@ static int cmd_x(char *args) {
     addr_exp = NULL;
     printf("Need right parameters.\n");
     return 0;
-  } 
+  }
   vaddr_t addr = strtoul(addr_exp,NULL,16);
   for(int i=0;i<n;i++) {
     word_t val = vaddr_read(addr+i*4,4);
@@ -103,10 +103,10 @@ static int cmd_x(char *args) {
     }
     printf(FMT_WORD"\t",val);
     if( i%4 == 3 ) {
-      printf("\n"); 
+      printf("\n");
     }
   }
-  printf("\n");  
+  printf("\n");
   return 0;
 }
 
@@ -121,11 +121,11 @@ static int cmd_p(char *args) {
 
 static int cmd_w(char *args) {
   if(args != NULL) {
-    bool success = true; 
+    bool success = true;
     int wid = new_wp(args,&success);
     if(success) printf("Watchpoint %d : %s\n",wid,args);
-    else printf("Could not insert watchpoint!\n"); 
-  }else printf("Need parameters!\n"); 
+    else printf("Could not insert watchpoint!\n");
+  }else printf("Need parameters!\n");
   return 0;
 }
 
@@ -135,17 +135,17 @@ static int cmd_d(char *args) {
     int num = atoi(args);
     free_wp(num,&success);
     if(success) printf("Watchpoint %d has been sucessfuly deleted!\n",num);
-  }else printf("Need parameters!\n"); 
+  }else printf("Need parameters!\n");
   return 0;
 }
 
 static int cmd_ft(char *args) {
 #ifdef CONFIG_FTRACE
   if(ftrace) p_ftrace();
-  else printf("There is something wrong with your elf file!\n"); 
+  else printf("There is something wrong with your elf file!\n");
 #else
   printf("This function has not been set yet!\n");
-#endif 
+#endif
   return 0;
 }
 
@@ -165,7 +165,7 @@ static struct {
   { "p", "Calculate the value of the expression EXPR", cmd_p },
   { "w", "Set watchpoint to stop execution whenever the value of the given expression changes", cmd_w },
   { "d", "Delete a watchpoint based on the given watchpoint number", cmd_d },
-  { "ftrace", "Show the function traces if you have set this function", cmd_ft }  
+  { "ftrace", "Show the function traces if you have set this function", cmd_ft }
 };
 
 #define NR_CMD ARRLEN(cmd_table)
@@ -243,5 +243,5 @@ void init_sdb() {
   init_wp_pool();
 
   /* Initialize the itrace ring buffer. */
-  init_iringbuf();
+  IFDEF(CONFIG_ITRACE, init_iringbuf());
 }

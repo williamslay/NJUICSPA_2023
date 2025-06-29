@@ -38,6 +38,7 @@ void itra_write(char* itrace);
 void itra_log(int assert_fail);
 void add_func_que(int type, vaddr_t now_addr,vaddr_t next_addr);
 void p_ftrace();
+void free_func_trace_mem();
 extern int ftrace;
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
@@ -46,7 +47,7 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #endif
 
 #ifdef CONFIG_ITRACE
-if (g_print_step) puts(_this->logbuf); 
+if (g_print_step) puts(_this->logbuf);
 itra_write(_this->logbuf);
 #endif
 
@@ -68,9 +69,9 @@ static void exec_once(Decode *s, vaddr_t pc) {
 #ifdef CONFIG_FTRACE
   if(ftrace && s->dnpc != s->snpc) {
     if(s->isa.inst.val == 0x00008067) //riscv-32 ret decode;
-      add_func_que(1,pc,s->dnpc); 
-    else 
-      add_func_que(0,pc,s->dnpc); 
+      add_func_que(1, pc, s->dnpc);
+    else
+      add_func_que(0, pc, s->dnpc);
   }
 #endif
 #ifdef CONFIG_ITRACE
@@ -124,10 +125,10 @@ void assert_fail_msg() {
   printf("\n");
 #ifdef CONFIG_ITRACE
   itra_log(1);
-#endif 
+#endif
 #ifdef CONFIG_FTRACE
   if(ftrace) p_ftrace();
-#endif 
+#endif
   statistic();
 }
 
@@ -156,7 +157,7 @@ void cpu_exec(uint64_t n) {
 #ifdef CONFIG_FTRACE
       if(ftrace) p_ftrace();
 #endif
-#ifdef CONFIG_ITRACE 
+#ifdef CONFIG_ITRACE
       itra_log(0);
 #endif
     }
@@ -167,5 +168,6 @@ void cpu_exec(uint64_t n) {
           nemu_state.halt_pc);
       // fall through
     case NEMU_QUIT: statistic();
+      IFDEF(CONFIG_FTRACE, free_func_trace_mem());
   }
 }

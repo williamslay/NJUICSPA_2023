@@ -21,19 +21,23 @@
 #ifdef CONFIG_FTRACE
 
 #define INST_LENGTH 4 //for riscv-32/64,mips32
-#define lOG_LENGTH 256
-#define FUCNAME_LENGTH 128
+#define FUNCNAME_LENGTH 32
+#define LOG_BUFF 512
 #define FTRACE_MAX 65536
 
 typedef struct func_node {
   vaddr_t begin;
   vaddr_t end;
-  char name[FUCNAME_LENGTH]; 
+  char name[FUNCNAME_LENGTH];
   struct func_node *next;
 } FM_NODE;
 
 typedef struct ftrace_node {
-  char log_buff[lOG_LENGTH]; 
+  int type; //0 for call,1 for ret
+  int call_stack_len;
+  FM_NODE *func_node;
+  vaddr_t now_addr;
+  vaddr_t next_addr;
   struct ftrace_node *next;
 } FT_NODE;
 
@@ -64,14 +68,22 @@ void add_map_node (char * func_name,vaddr_t func_begin , vaddr_t func_end) {
   map_head = ptr;
 }
 
+FM_NODE* get_func_node (vaddr_t addr) {
+  FM_NODE * temp = map_head;
+  while(temp != NULL) {
+    if(addr >= temp->begin && addr <= temp->end) return temp;
+    temp = temp->next;
+  }
+  return NULL;
+}
+
 char* get_func_name (vaddr_t addr) {
   FM_NODE * temp = map_head;
   while(temp != NULL) {
     if(addr >= temp->begin && addr <= temp->end) return temp->name;
     temp = temp->next;
   }
-  char *wrong_ans = "???";
-  return wrong_ans; 
+  return "??";
 }
 
 Elf_Shdr get_section_header(FILE *fp, Elf_Ehdr elf_header, int index) {
@@ -101,7 +113,7 @@ Elf_Shdr find_section_by_name(FILE *fp, Elf_Ehdr elf_header, const char *section
 
 char* get_symbol_name(FILE *fp, Elf32_Shdr strtab_section,  uint32_t st_name_offset) {
   // Allocate memory for the symbol name
-  char *name = (char *)malloc(FUCNAME_LENGTH);
+  char *name = (char *)malloc(FUNCNAME_LENGTH);
   if (name == NULL) {
     perror("Memory allocation failed");
     return NULL;
@@ -124,9 +136,20 @@ char* get_symbol_name(FILE *fp, Elf32_Shdr strtab_section,  uint32_t st_name_off
 }
 
 void init_func_que() {
-  que_head = (struct ftrace_node *)malloc(sizeof(struct ftrace_node));
-  memset(que_head->log_buff,'\0',sizeof(que_head->log_buff));
+  que_head = (FT_NODE *)malloc(sizeof(FT_NODE));
+  memset(que_head, '\0', sizeof(FT_NODE));
   que_tail = que_head;
+}
+
+void free_func_que() {
+  FT_NODE * temp = que_head;
+  while(temp != NULL) {
+    FT_NODE * next = temp->next;
+    free(temp);
+    temp = next;
+  }
+  que_head = NULL;
+  que_tail = NULL;
 }
 
 int init_func_map(const char *elf_file) {
@@ -139,7 +162,7 @@ int init_func_map(const char *elf_file) {
   // read elf header
   wrapped_fread(&elf_header, 1, sizeof(Elf_Ehdr), fp);
 
-  // find the ".symtab" section and ".strtab" section 
+  // find the ".symtab" section and ".strtab" section
   Elf_Shdr symtab_header = find_section_by_name(fp, elf_header, ".symtab");
   Elf_Shdr strtab_header = find_section_by_name(fp, elf_header, ".strtab");
 
@@ -154,34 +177,50 @@ int init_func_map(const char *elf_file) {
     if(MUXDEF(CONFIG_ISA64, ELF64_ST_TYPE(symbol.st_info),ELF32_ST_TYPE(symbol.st_info)) ==  STT_FUNC) {
       long file_pos = ftell(fp);
       char* symbolName = get_symbol_name(fp, strtab_header, symbol.st_name);
-      add_map_node(symbolName,(vaddr_t)symbol.st_value,(vaddr_t)(symbol.st_value + symbol.st_size - INST_LENGTH)); 
+      add_map_node(symbolName,(vaddr_t)symbol.st_value,(vaddr_t)(symbol.st_value + symbol.st_size - INST_LENGTH));
       free(symbolName);
       fseek(fp, file_pos, SEEK_SET);
     }
-  } 
-  
+  }
+
   fclose(fp);
   init_func_que();
   return 1;
 }
 
+void free_func_map() {
+  FM_NODE * temp = map_head;
+  while(temp != NULL) {
+    FM_NODE * next = temp->next;
+    free(temp);
+    temp = next;
+  }
+  map_head = NULL;
+}
+
 void add_func_que(int type, vaddr_t now_addr,vaddr_t next_addr) {
-  Assert(que_count <= FTRACE_MAX,"trace too many functions,there may be someting wrong!");
-  char* now_func_name = get_func_name(now_addr);
-  char* next_func_name = get_func_name(next_addr); 
-  if(strcmp(now_func_name,next_func_name)== 0) return; 
-  struct ftrace_node* ptr = (struct ftrace_node *)malloc(sizeof(struct ftrace_node));
+  Assert(que_count <= FTRACE_MAX, "trace too many functions, there may be someting wrong!");
+  FT_NODE* ptr = (FT_NODE *)malloc(sizeof(FT_NODE));
   ptr->next = NULL;
-  char* pos = ptr->log_buff;
-  pos+= sprintf(pos,FMT_WORD":",now_addr);
+  FM_NODE * next_func = get_func_node(next_addr);
+  FM_NODE * cur_func = get_func_node(now_addr);
+  if (next_func == NULL) {
+    printf("Error: function not found for next address:"FMT_WORD"\n", next_addr);
+    return;
+  }
+  if (cur_func == next_func) return; // avoid duplicate entries for the same function
+  ptr->now_addr = now_addr;
+  ptr->next_addr = next_addr;
   /*type 0 : call ,type 1: ret */
-  if(type == 0) {
+  if (type == 0) {
     st_count++;
-    pos+= sprintf(pos,"%*s", st_count, "");
-    pos+= sprintf(pos,"call [%s@"FMT_WORD"]",next_func_name,next_addr); 
-  }else{
-    pos+= sprintf(pos,"%*s", st_count, "");
-    pos+= sprintf(pos,"ret [%s]",now_func_name); 
+    ptr->call_stack_len = st_count;
+    ptr->func_node = next_func;
+    ptr->type = 0;
+  } else {
+    ptr->call_stack_len = st_count;
+    ptr->func_node = cur_func;
+    ptr->type = 1;
     st_count--;
   }
   que_tail->next = ptr;
@@ -190,12 +229,29 @@ void add_func_que(int type, vaddr_t now_addr,vaddr_t next_addr) {
 }
 
 void p_ftrace() {
+  char buffer[LOG_BUFF];
   FT_NODE * temp = que_head->next;
-  if(temp != NULL) printf(ANSI_FMT("FuncTrace will show functions traced before program crushes/stops below.\n",ANSI_FG_GREEN ));
+  if(temp != NULL) printf(ANSI_FMT("FuncTrace will show functions traced below.\n", ANSI_FG_GREEN));
   while(temp != NULL) {
-    printf("%s\n",temp->log_buff);
+    Assert(temp->call_stack_len < LOG_BUFF, "The stack length is too long, there may be someting wrong!");
+    int pos = 0;
+    pos += sprintf(buffer + pos, ":"FMT_WORD, temp->now_addr);
+    pos += sprintf(buffer + pos, "%*s", temp->call_stack_len, "");
+    if(temp->type == 0) {
+      pos += sprintf(buffer + pos, "call [%s@"FMT_WORD"]", temp->func_node->name, temp->next_addr);
+    }else {
+      pos += sprintf(buffer + pos, "ret [%s]", temp->func_node->name);
+    }
+    printf("%s\n", buffer);
     temp = temp->next;
   }
+}
+
+void free_func_trace_mem() {
+  free_func_que();
+  free_func_map();
+  que_count = 0;
+  st_count = 0;
 }
 
 #endif
