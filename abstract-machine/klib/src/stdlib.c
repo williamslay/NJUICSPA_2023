@@ -4,6 +4,7 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 static unsigned long int next = 1;
+static void *last_malloc_addr = NULL;
 
 int rand(void) {
   // RAND_MAX assumed to be 32767
@@ -29,14 +30,20 @@ int atoi(const char* nptr) {
   return x;
 }
 
+// TODO: when in multi-threading mode, we should add mutex lock to malloc/free
 void *malloc(size_t size) {
-  // On native, malloc() will be called during initializaion of C runtime.
-  // Therefore do not call panic() here, else it will yield a dead recursion:
-  //   panic() -> putchar() -> (glibc) -> malloc() -> panic()
-#if !(defined(__ISA_NATIVE__) && defined(__NATIVE_USE_KLIB__))
-  panic("Not implemented");
-#endif
-  return NULL;
+  if (last_malloc_addr == NULL) last_malloc_addr = heap.start;
+  /* simple error handling */
+  if (size == 0) return NULL;
+  /* TODO: arch related, should rebuild in the future*/
+  if (((uintptr_t)last_malloc_addr & 0x3) != 0) {
+    // align to 4 bytes
+    last_malloc_addr = (void *)ROUNDUP((uintptr_t)last_malloc_addr, 4);
+  }
+  if (last_malloc_addr + size > heap.end) return NULL;
+  void *ptr = last_malloc_addr;
+  last_malloc_addr += size;
+  return ptr;
 }
 
 void free(void *ptr) {
