@@ -2,12 +2,19 @@
 #include <riscv/riscv.h>
 #include <klib.h>
 
+#define INTR_YIELD 11
+
 static Context* (*user_handler)(Event, Context*) = NULL;
 
 Context* __am_irq_handle(Context *c) {
   if (user_handler) {
     Event ev = {0};
     switch (c->mcause) {
+      case INTR_YIELD: {
+        ev.event = EVENT_YIELD;
+        c->mepc += 4;
+        break;
+      }
       default: ev.event = EVENT_ERROR; break;
     }
 

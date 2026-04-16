@@ -31,6 +31,7 @@ void init_isa();
 // reg
 extern CPU_state cpu;
 void isa_reg_display();
+void isa_csr_reg_display();
 word_t isa_reg_str2val(const char *name, bool *success);
 
 // exec
@@ -49,6 +50,7 @@ paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type);
 // interrupt/exception
 vaddr_t isa_raise_intr(word_t NO, vaddr_t epc);
 #define INTR_EMPTY ((word_t)-1)
+#define ECALL_FROM_MMOD ((word_t)11)
 word_t isa_query_intr();
 
 // difftest

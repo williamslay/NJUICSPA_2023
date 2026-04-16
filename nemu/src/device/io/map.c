@@ -61,8 +61,7 @@ word_t map_read(paddr_t addr, int len, IOMap *map) {
 #ifdef CONFIG_DTRACE
     #ifdef CONFIG_DTRACE_COND
       if(DTRACE_COND) {
-        printf(ANSI_FMT("\nread device %s at pc = "FMT_PADDR"\n",ANSI_FG_BLUE) , map->name,cpu.pc);
-        log_write("\nread device %s at pc = "FMT_PADDR"\n", map->name,cpu.pc);
+        _Log("\nread device %s at pc = "FMT_PADDR"\n", map->name, cpu.pc);
       }
     #endif
 #endif
@@ -78,8 +77,7 @@ void map_write(paddr_t addr, int len, word_t data, IOMap *map) {
 #ifdef CONFIG_DTRACE
     #ifdef CONFIG_DTRACE_COND
       if(DTRACE_COND) {
-        printf(ANSI_FMT("\nwrite device %s at pc = "FMT_PADDR"\n", ANSI_FG_BLUE) , map->name,cpu.pc);
-        log_write("\nwrite device %s at pc = "FMT_PADDR"\n", map->name,cpu.pc);
+        _Log("\nwrite device %s at pc = "FMT_PADDR"\n", map->name, cpu.pc);
       }
     #endif
 #endif

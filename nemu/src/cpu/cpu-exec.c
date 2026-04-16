@@ -27,7 +27,17 @@
  */
 #define MAX_INST_TO_PRINT 10
 
-CPU_state cpu = {};
+CPU_state cpu = {
+#ifdef CONFIG_ISA_riscv
+  //MSTATUS
+  .csrs = {
+    [0] = 0x1800, // MSTATUS.MIE = 1, MSTATUS.MPP = 0
+    [1] = 0x00000000, // MTEVC is used as the trap entry in NEMU
+    [2] = 0x00000000, // MEPC is set by isa_raise_intr
+    [3] = 0x00000000, // MCAUSE is set by isa_raise_intr
+  },
+#endif
+};
 uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
@@ -122,6 +132,7 @@ static void statistic() {
 
 void assert_fail_msg() {
   isa_reg_display();
+  isa_csr_reg_display();
   printf("\n");
 #ifdef CONFIG_ITRACE
   itra_log(1);
@@ -151,7 +162,7 @@ void cpu_exec(uint64_t n) {
 
   switch (nemu_state.state) {
     case NEMU_RUNNING: nemu_state.state = NEMU_STOP; break;
-    case NEMU_STOP :break;
+    case NEMU_STOP: break;
     case NEMU_END: case NEMU_ABORT:
     if(nemu_state.state ==  NEMU_ABORT) {
 #ifdef CONFIG_FTRACE

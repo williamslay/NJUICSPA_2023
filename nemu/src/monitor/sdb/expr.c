@@ -89,28 +89,25 @@ static bool make_token(char *e) {
 
         if(substr_len > 32) {
           printf("A syntax error in expression, Long Parameters.\n");
-          return false; 
+          return false;
         }
-
-        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
-        position += substr_len; 
+        position += substr_len;
 
         switch (rules[i].token_type) {
-          case TK_NOTYPE: break; 
+          case TK_NOTYPE: break;
           case TK_DNUM:
-            tokens[nr_token].type = rules[i].token_type;  
-            memcpy(tokens[nr_token].str,substr_start,substr_len); 
+            tokens[nr_token].type = rules[i].token_type;
+            memcpy(tokens[nr_token].str,substr_start,substr_len);
             nr_token++;
             break;
           case TK_HNUM:
             tokens[nr_token].type = rules[i].token_type;
-            memcpy(tokens[nr_token].str,substr_start,substr_len); 
+            memcpy(tokens[nr_token].str,substr_start,substr_len);
             nr_token++;
-            break; 
-          case TK_REG: 
+            break;
+          case TK_REG:
             tokens[nr_token].type = rules[i].token_type;
-            memcpy(tokens[nr_token].str,substr_start+1,substr_len-1); 
+            memcpy(tokens[nr_token].str,substr_start+1,substr_len-1);
             nr_token++;
             break;
           default: tokens[nr_token++].type = rules[i].token_type ;
@@ -131,18 +128,18 @@ static bool check_brak(int p,int q) {
   for(int i=p;i<=q;i++) {
       switch (tokens[i].type) {
       case '(': a++;  break;
-      case ')': if(a>0) a--; else return false; break; 
+      case ')': if(a>0) a--; else return false; break;
       default:break;
       }
   }
   if(a==0)  return true;
-  else  return false; 
-} 
+  else  return false;
+}
 
 static bool check_parentheses(int p,int q) {
-  if(tokens[p].type!='(' || tokens[q].type!=')')  
+  if(tokens[p].type!='(' || tokens[q].type!=')')
     return false;
-  else return check_brak(p+1,q-1); 
+  else return check_brak(p+1,q-1);
 }
 
 
@@ -172,12 +169,12 @@ static word_t eval(int p, int q) {
   else if (p == q) {
     /* Single token.*/
     switch (tokens[p].type) {
-      case TK_DNUM: 
-        return atoi(tokens[p].str); 
+      case TK_DNUM:
+        return atoi(tokens[p].str);
       case TK_HNUM:
-        return strtoul(tokens[p].str,NULL,16);
-      case TK_REG: 
-        return isa_reg_str2val(tokens[p].str,NULL);
+        return strtoul(tokens[p].str, NULL, 16);
+      case TK_REG:
+        return isa_reg_str2val(tokens[p].str, NULL);
     }
   }
   else if (check_parentheses(p, q)) {
@@ -200,7 +197,7 @@ static word_t eval(int p, int q) {
       }
     }else{
       if(tokens[p].type == DEREF) {
-        vaddr_t addr = eval(p+1,q);
+        vaddr_t addr = eval(p+1, q);
         return vaddr_read(addr,4);
       }else {
         assert(0);
@@ -220,11 +217,11 @@ static bool check_expr(int p ,int q)  {
       return true;
     else if(tokens[p].type==TK_REG) {
       bool success = true;
-      isa_reg_str2val(tokens[p].str,&success);
-      return success; 
+      isa_reg_str2val(tokens[p].str, &success);
+      return success;
     }
     else return false;
-  } 
+  }
   else if (check_parentheses(p, q)) {
     return check_expr(p + 1, q - 1);
   }
@@ -241,7 +238,7 @@ static bool check_expr(int p ,int q)  {
         assert(0);
       }
     }
-  } 
+  }
 }
 
 word_t expr(char *e, bool *success) {
@@ -256,9 +253,9 @@ word_t expr(char *e, bool *success) {
     if (tokens[i].type == '*') {
       if(i == 0) tokens[i].type = DEREF;
       else {
-        for(int j = 0;j<9 ;j++) {
-          if(tokens[i-1].type == certenType[j] ) {
-            tokens[i].type = DEREF; 
+        for(int j = 0;j<9;j++) {
+          if(tokens[i-1].type == certenType[j]) {
+            tokens[i].type = DEREF;
             break;
           }
         }
@@ -266,11 +263,11 @@ word_t expr(char *e, bool *success) {
     }
   }
 
-  if(nr_token == 0 || !check_brak(0,nr_token-1) ||!check_expr(0,nr_token-1)) {
+  if(nr_token == 0 || !check_brak(0, nr_token - 1) ||!check_expr(0, nr_token - 1)) {
     printf("A syntax error in expression!\n");
-    if(success!=NULL)*success = false;
+    if(success != NULL) *success = false;
     return -1;
-  }  
+  }
 
   return eval(0, nr_token-1);
 }
@@ -281,7 +278,7 @@ void test_expr() {
     assert(fp != NULL);
 
     char e[65536]={};
-    word_t result,calculate,ret;
+    word_t result, calculate, ret;
     int i =0;
     bool *success = NULL;
 
@@ -289,12 +286,12 @@ void test_expr() {
       i++;
       ret = fscanf(fp, "%d", &result);
       assert(ret != 0);
-      assert(fgets(e,65536,fp)!=NULL);
-      e[strlen(e)-1] = '\0'; 
-      calculate=expr(e,success);
-      Assert(calculate == result,"%d wrong result,result:%d,calculate:%d",i,result,calculate);
-      Log("%d expr success",i);
-      memset(e,0, sizeof(e));
+      assert(fgets(e, 65536, fp)!=NULL);
+      e[strlen(e) - 1] = '\0';
+      calculate=expr(e, success);
+      Assert(calculate == result, "%d wrong result,result:%d,calculate:%d", i, result, calculate);
+      Log("%d expr success", i);
+      memset(e, 0, sizeof(e));
     }while(!feof(fp));
 
     fclose(fp);

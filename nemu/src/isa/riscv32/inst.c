@@ -19,29 +19,31 @@
 #include <cpu/decode.h>
 
 #define R(i) gpr(i)
+#define CSRs(i) csrs(i)
 #define Mr vaddr_read
 #define Mw vaddr_write
 
 enum {
-  TYPE_I, TYPE_U, TYPE_S,TYPE_R,TYPE_J,TYPE_B,
+  TYPE_I, TYPE_U, TYPE_S, TYPE_R, TYPE_J, TYPE_B,
   TYPE_N, // none
 };
 
-#define src1R() do { *src1 = R(rs1); } while (0)
-#define src2R() do { *src2 = R(rs2); } while (0)
+#define src1R() do { *src1 = R(rs1); } while(0)
+#define src2R() do { *src2 = R(rs2); } while(0)
+#define csrR() do { *csr = SEXT(BITS(i, 31, 20), 12); } while(0)
 #define immI() do { *imm = SEXT(BITS(i, 31, 20), 12); } while(0)
 #define immU() do { *imm = SEXT(BITS(i, 31, 12), 20) << 12; } while(0)
 #define immS() do { *imm = (SEXT(BITS(i, 31, 25), 7) << 5) | BITS(i, 11, 7); } while(0)
 #define immB() do { *imm = (SEXT(BITS(i, 31, 31), 1)<<12)|(BITS(i, 7, 7)<<11)|(BITS(i, 30, 25)<<5)|(BITS(i, 11, 8)<<1); } while(0)
 #define immJ() do { *imm = (SEXT(BITS(i, 31, 31), 1)<<20)|(BITS(i, 19, 12)<<12)|(BITS(i, 20, 20)<<11)|(BITS(i, 30, 21)<<1); } while(0)
 
-static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
+static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, word_t *csr, int type) {
   uint32_t i = s->isa.inst.val;
   int rs1 = BITS(i, 19, 15);
   int rs2 = BITS(i, 24, 20);
   *rd     = BITS(i, 11, 7);
   switch (type) {
-    case TYPE_I: src1R();          immI(); break;
+    case TYPE_I: csrR();  src1R(); immI(); break;
     case TYPE_U:                   immU(); break;
     case TYPE_S: src1R(); src2R(); immS(); break;
     case TYPE_B: src1R(); src2R(); immB(); break;
@@ -52,12 +54,12 @@ static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_
 
 static int decode_exec(Decode *s) {
   int rd = 0;
-  word_t src1 = 0, src2 = 0, imm = 0;
+  word_t src1 = 0, src2 = 0, imm = 0, csr = 0;
   s->dnpc = s->snpc;
 
 #define INSTPAT_INST(s) ((s)->isa.inst.val)
 #define INSTPAT_MATCH(s, name, type, ... /* execute body */ ) { \
-  decode_operand(s, &rd, &src1, &src2, &imm, concat(TYPE_, type)); \
+  decode_operand(s, &rd, &src1, &src2, &imm, &csr, concat(TYPE_, type)); \
   __VA_ARGS__ ; \
 }
 
@@ -79,7 +81,10 @@ static int decode_exec(Decode *s) {
   INSTPAT("0100000 ????? ????? 101 ????? 00100 11", srai   , I, R(rd) = (sword_t)src1 >> BITS(imm,4,0));
   INSTPAT("??????? ????? ????? 111 ????? 00100 11", andi   , I, R(rd) = src1 & imm);
   INSTPAT("??????? ????? ????? 110 ????? 00100 11", ori    , I, R(rd) = src1 | imm);
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, sword_t t = s->pc + 4;s->dnpc = ((src1 + imm) & 0xfffffffe);R(rd) = t);
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, sword_t tmp = s->pc + 4;s->dnpc = ((src1 + imm) & 0xfffffffe);R(rd) = tmp);
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, s->dnpc = isa_raise_intr(ECALL_FROM_MMOD, s->pc););
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, word_t tmp = CSRs(csr);CSRs(csr) = src1;R(rd) = tmp);
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, word_t tmp = CSRs(csr);CSRs(csr) = src1 | tmp;R(rd) = tmp);
 
   INSTPAT("0000000 ????? ????? 000 ????? 01100 11", add    , R, R(rd) = src1 + src2);
   INSTPAT("0000000 ????? ????? 001 ????? 01100 11", sll    , R, R(rd) = src1 << src2);
@@ -97,6 +102,7 @@ static int decode_exec(Decode *s) {
   INSTPAT("0000001 ????? ????? 101 ????? 01100 11", divu   , R, R(rd) = src1 / src2);
   INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem    , R, R(rd) = (sword_t)src1 % (sword_t)src2);
   INSTPAT("0000001 ????? ????? 111 ????? 01100 11", remu   , R, R(rd) = src1 % src2);
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , R, s->dnpc = csrs(MEPC));
   INSTPAT("0100000 ????? ????? 000 ????? 01100 11", sub    , R, R(rd) = src1 - src2);
   INSTPAT("0100000 ????? ????? 101 ????? 01100 11", sra    , R, R(rd) = (sword_t)src1 >> src2);
 

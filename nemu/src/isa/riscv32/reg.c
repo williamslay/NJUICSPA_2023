@@ -24,22 +24,39 @@ const char *regs[] = {
   "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"
 };
 
+const char *csregs[] = {
+  "MSTATUS", "MTEVC", "MEPC", "MCAUSE"
+};
+
+const CSRAddr2Idx CSRAddrmap[] = {
+  {MSTATUS, 0},
+  {MTEVC, 1},
+  {MEPC, 2},
+  {MCAUSE, 3},
+};
+
+void isa_csr_reg_display() {
+  for(int i=0; i < CSRNUMS; i++) {
+    printf("%s\t\t "FMT_WORD"\t\t %d\n", csreg_name(i), cpu.csrs[i], cpu.csrs[i]);
+  }
+}
+
 void isa_reg_display() {
-  for(int i=0;i< MUXDEF(CONFIG_RVE, 16, 32);i++) {
-    printf("%s\t\t "FMT_WORD"\t\t %d\n",reg_name(i),cpu.gpr[i],cpu.gpr[i]); 
+  for(int i=0; i < MUXDEF(CONFIG_RVE, 16, 32); i++) {
+    printf("%s\t\t "FMT_WORD"\t\t %d\n", reg_name(i), cpu.gpr[i], cpu.gpr[i]);
   }
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
-  if(strcmp(s,"pc")==0 || strcmp(s,"PC")==0) {
-    if(success != NULL)*success = true;
+  if(strcmp(s, "pc")==0 || strcmp(s, "PC")==0) {
+    if(success != NULL) *success = true;
     return cpu.pc;
   }
-  for(int i=0;i< MUXDEF(CONFIG_RVE, 16, 32);i++) {
-    if(strcmp(s,reg_name(i)) == 0) {
-      if(success != NULL)*success = true;
+  for(int i = 0; i < MUXDEF(CONFIG_RVE, 16, 32); i++) {
+    if(strcmp(s, reg_name(i)) == 0) {
+      if(success != NULL) *success = true;
       return gpr(i);
-    } 
+    }
   }
   if(success != NULL) *success = false;
   return 0;
