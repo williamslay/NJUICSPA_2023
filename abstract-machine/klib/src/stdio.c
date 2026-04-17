@@ -7,7 +7,7 @@
 //printf buffer length
 #define PBUFFER 2048
 //temp buffer length
-#define BUFFER 128
+#define BUFFER 2048
 //The order in the array cannot be changed
 static const char signflags[] = {'+',' ', '#','0'};
 
@@ -249,7 +249,7 @@ static inline int putFormatSpecifer(char*out, const char *fmt, unsigned int fmtP
   const char* curFmt = fmt + fmtPos;
   bool pFlags[NR_FLAG] = {false};
   unsigned int width = 0;
-  unsigned int precision = 256;
+  unsigned int precision = PBUFFER;  // Default: no limit for %s
   // set the flags
   while(setFlags(pFlags, curFmt, pos)) {
     pos++;
