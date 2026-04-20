@@ -1,6 +1,7 @@
 #include <am.h>
 #include <riscv/riscv.h>
 #include <klib.h>
+#include <arch/riscv.h>
 
 #define INTR_YIELD 11
 
@@ -11,13 +12,20 @@ Context* __am_irq_handle(Context *c) {
     Event ev = {0};
     switch (c->mcause) {
       case INTR_YIELD: {
-        ev.event = EVENT_YIELD;
-        c->mepc += 4;
+        if (c->GPR1 == (uintptr_t) -1) {
+          ev.event = EVENT_YIELD;
+        } else{
+          ev.event = EVENT_SYSCALL;
+        }
         break;
       }
       default: ev.event = EVENT_ERROR; break;
     }
 
+    // to distinguish synch & asynch exception depend on the high bits
+    if ((intptr_t)c->mcause > 0) {
+      c->mepc += 4;
+    }
     c = user_handler(ev, c);
     assert(c != NULL);
   }

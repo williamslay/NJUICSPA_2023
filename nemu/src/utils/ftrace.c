@@ -25,6 +25,8 @@
 #define LOG_BUFF 512
 #define FTRACE_MAX 65536
 
+// TODO: support multi elf files
+
 typedef struct func_node {
   vaddr_t begin;
   vaddr_t end;
