@@ -1,5 +1,6 @@
 #include <proc.h>
 #include <elf.h>
+#include <fs.h>
 
 #ifdef __LP64__
 # define Elf_Ehdr Elf64_Ehdr
@@ -21,15 +22,12 @@
 # define EXPECT_TYPE EM_RISCV
 #endif
 
-extern size_t ramdisk_read(void *buf, size_t offset, size_t len);
-extern size_t ramdisk_write(const void *buf, size_t offset, size_t len);
-extern size_t get_ramdisk_size();
-
 static uintptr_t loader(PCB *pcb, const char *filename) {
   Elf_Ehdr elf_header;
   Elf_Phdr pHdr;
+  size_t fd = fs_open(filename, 0, 0);
   // read elf header
-  ramdisk_read(&elf_header, 0, sizeof(Elf_Ehdr));
+  fs_read(fd, &elf_header, sizeof(Elf_Ehdr));
   // check the magic number and ISA
   assert(elf_header.e_ident[0] == 0x7F && elf_header.e_ident[1] == 'E'
       && elf_header.e_ident[2] == 'L' && elf_header.e_ident[3] == 'F');
@@ -39,11 +37,14 @@ static uintptr_t loader(PCB *pcb, const char *filename) {
   assert(elf_header.e_machine == EXPECT_TYPE);
   // start loading
   for (int i = 0; i < elf_header.e_phnum; i++) {
-    ramdisk_read(&pHdr, elf_header.e_phoff + i * sizeof(Elf_Phdr), sizeof(Elf_Phdr));
+    fs_lseek(fd, elf_header.e_phoff + i * sizeof(Elf_Phdr), SEEK_SET);
+    fs_read(fd, &pHdr, sizeof(Elf_Ehdr));
     if (pHdr.p_type != PT_LOAD) continue;
-    ramdisk_read((uintptr_t *) pHdr.p_vaddr, pHdr.p_offset, pHdr.p_memsz);
+    fs_lseek(fd, pHdr.p_offset, SEEK_SET);
+    fs_read(fd, (uintptr_t *)pHdr.p_vaddr, pHdr.p_memsz);
     memset((uintptr_t *) (pHdr.p_vaddr + pHdr.p_filesz), 0, pHdr.p_memsz - pHdr.p_filesz);
   }
+  fs_close(fd);
   return elf_header.e_entry;
 }
 

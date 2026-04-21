@@ -27,4 +27,11 @@
 
 #define TODO() panic("please implement me")
 
+#define STRACE(cond, format, ...) \
+  do { \
+    if (cond) { \
+       Log("\33[1;31m" format, ## __VA_ARGS__); \
+    } \
+  } while (0)
+
 #endif
