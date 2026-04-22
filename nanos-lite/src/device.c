@@ -10,6 +10,7 @@
   [AM_KEY_##key] = #key,
 
 #define KEYBRD_EVENT_BUFFER_SIZE 32
+#define DISPINFO_BUFFER_SIZE 64
 
 static const char *keyname[256] __attribute__((used)) = {
   [AM_KEY_NONE] = "NONE",
@@ -37,16 +38,32 @@ size_t events_read(void *buf, size_t offset, size_t len) {
     rel_cnt = snprintf(event, KEYBRD_EVENT_BUFFER_SIZE, "ku %s\n",
                        keyname[ev.keycode]);
   }
+  assert(rel_cnt < len);
   memcpy(buf, event, rel_cnt);
   return rel_cnt;
 }
 
 size_t dispinfo_read(void *buf, size_t offset, size_t len) {
-  return 0;
+  if (len == 0) return 0;
+  char dispinfo[DISPINFO_BUFFER_SIZE];
+  AM_GPU_CONFIG_T cfg = io_read(AM_GPU_CONFIG);
+  size_t rel_cnt = snprintf(dispinfo, DISPINFO_BUFFER_SIZE,
+                            "WIDTH:%d\nHEIGHT:%d\n", cfg.width, cfg.height);
+  assert(rel_cnt < len);
+  memcpy(buf, dispinfo, rel_cnt);
+  return rel_cnt;
 }
 
 size_t fb_write(const void *buf, size_t offset, size_t len) {
-  return 0;
+  if (len == 0) return 0;
+  AM_GPU_CONFIG_T cfg = io_read(AM_GPU_CONFIG);
+  int width_pixels = cfg.width;
+  int x = (offset / sizeof(uint32_t)) % width_pixels;
+  int y = (offset / sizeof(uint32_t)) / width_pixels;
+  int w = len / sizeof(uint32_t);
+  int h = 1;
+  io_write(AM_GPU_FBDRAW, x, y, (void *)buf, w, h, true);
+  return len;
 }
 
 void init_device() {
