@@ -3,17 +3,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <fcntl.h>
 
 static int evtdev = -1;
 static int fbdev = -1;
 static int screen_w = 0, screen_h = 0;
+static uint32_t start_time;
 
 uint32_t NDL_GetTicks() {
-  return 0;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec * 1000 + tv.tv_usec / 1000 - start_time;
 }
 
 int NDL_PollEvent(char *buf, int len) {
-  return 0;
+  evtdev = open("/dev/events", O_RDONLY);
+  if (evtdev < 0) return 0;
+  int ret = read(evtdev, buf, len - 1);
+  buf[ret] = '\0';
+  return ret;
 }
 
 void NDL_OpenCanvas(int *w, int *h) {
@@ -54,6 +63,9 @@ int NDL_QueryAudio() {
 }
 
 int NDL_Init(uint32_t flags) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  start_time = tv.tv_sec * 1000 + tv.tv_usec / 1000;
   if (getenv("NWM_APP")) {
     evtdev = 3;
   }
