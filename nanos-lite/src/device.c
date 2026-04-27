@@ -27,31 +27,31 @@ size_t serial_write(const void *buf, size_t offset, size_t len) {
 
 size_t events_read(void *buf, size_t offset, size_t len) {
   if (len == 0) return 0;
-  size_t rel_cnt = 0;
+  size_t real_cnt = 0;
   char event[KEYBRD_EVENT_BUFFER_SIZE];
   AM_INPUT_KEYBRD_T ev = io_read(AM_INPUT_KEYBRD);
   if (ev.keycode == AM_KEY_NONE) return 0;
   if (ev.keydown) {
-    rel_cnt = snprintf(event, KEYBRD_EVENT_BUFFER_SIZE, "kd %s\n",
+    real_cnt = snprintf(event, KEYBRD_EVENT_BUFFER_SIZE, "kd %s\n",
                        keyname[ev.keycode]);
   } else {
-    rel_cnt = snprintf(event, KEYBRD_EVENT_BUFFER_SIZE, "ku %s\n",
+    real_cnt = snprintf(event, KEYBRD_EVENT_BUFFER_SIZE, "ku %s\n",
                        keyname[ev.keycode]);
   }
-  assert(rel_cnt < len);
-  memcpy(buf, event, rel_cnt);
-  return rel_cnt;
+  assert(real_cnt < len);
+  memcpy(buf, event, real_cnt);
+  return real_cnt;
 }
 
 size_t dispinfo_read(void *buf, size_t offset, size_t len) {
   if (len == 0) return 0;
   char dispinfo[DISPINFO_BUFFER_SIZE];
   AM_GPU_CONFIG_T cfg = io_read(AM_GPU_CONFIG);
-  size_t rel_cnt = snprintf(dispinfo, DISPINFO_BUFFER_SIZE,
+  size_t real_cnt = snprintf(dispinfo, DISPINFO_BUFFER_SIZE,
                             "WIDTH:%d\nHEIGHT:%d\n", cfg.width, cfg.height);
-  assert(rel_cnt < len);
-  memcpy(buf, dispinfo, rel_cnt);
-  return rel_cnt;
+  assert(real_cnt < len);
+  memcpy(buf, dispinfo, real_cnt);
+  return real_cnt;
 }
 
 size_t fb_write(const void *buf, size_t offset, size_t len) {

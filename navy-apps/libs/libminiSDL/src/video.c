@@ -7,9 +7,69 @@
 void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect) {
   assert(dst && src);
   assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
+  
+  SDL_Rect full_src = {0, 0, src->w, src->h};
+  if (srcrect == NULL) srcrect = &full_src;
+
+  int dst_x = 0, dst_y = 0;
+  if (dstrect != NULL) {
+    dst_x = dstrect->x;
+    dst_y = dstrect->y;
+  }
+
+  int bpp = dst->format->BytesPerPixel;
+  int copy_width = srcrect->w;
+  int copy_height = srcrect->h;
+
+  if (dst_x + copy_width > dst->w)
+    copy_width = dst->w - dst_x;
+  if (dst_y + copy_height > dst->h)
+    copy_height = dst->h - dst_y;
+
+  for (int i = 0; i < copy_height; i++) {
+    uint8_t *src_row = src->pixels + (srcrect->y + i) * src->pitch + srcrect->x * bpp;
+    uint8_t *dst_row = dst->pixels + (dst_y + i) * dst->pitch + dst_x * bpp;
+    memcpy(dst_row, src_row, copy_width * bpp);
+  }
 }
 
 void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
+  assert(dst);
+
+  SDL_Rect full_rect = {0, 0, dst->w, dst->h};
+  if (dstrect == NULL) dstrect = &full_rect;
+
+  int x = dstrect->x;
+  int y = dstrect->y;
+  int w = dstrect->w;
+  int h = dstrect->h;
+
+  if (x < 0) { w += x; x = 0; }
+  if (y < 0) { h += y; y = 0; }
+  if (x + w > dst->w) w = dst->w - x;
+  if (y + h > dst->h) h = dst->h - y;
+  if (w <= 0 || h <= 0) return;
+
+  int bpp = dst->format->BytesPerPixel;
+
+  if (bpp == 1) {
+    for (int i = 0; i < h; i++) {
+      uint8_t *row = dst->pixels + (y + i) * dst->pitch + x;
+      memset(row, (uint8_t)color, w);
+    }
+  } else if (bpp == 4) {
+    for (int i = 0; i < h; i++) {
+      uint32_t *row = (uint32_t *)(dst->pixels + (y + i) * dst->pitch) + x;
+      for (int j = 0; j < w; j++)
+        row[j] = color;
+    }
+  } else if (bpp == 2) {
+    for (int i = 0; i < h; i++) {
+      uint16_t *row = (uint16_t *)(dst->pixels + (y + i) * dst->pitch) + x;
+      for (int j = 0; j < w; j++)
+        row[j] = (uint16_t)color;
+    }
+  }
 }
 
 void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
@@ -17,7 +77,6 @@ void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
     NDL_DrawRect(s->pixels, 0, 0, s->w, s->h);
     return;
   }
-  NDL_OpenCanvas(&w, &h);
   NDL_DrawRect(s->pixels, x, y, w, h);
   return;
 }
