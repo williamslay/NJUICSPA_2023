@@ -49,7 +49,7 @@ int fs_open(const char *pathname, int flags, int mode) {
   assert(pathname != NULL);
   for (int i = 0; i < FILE_TABLE_NUM; i++) {
     if (strcmp(file_table[i].name, pathname) == 0) {
-      if (i < FD_PROC_DISPLAY) return i;
+      if (i < FD_SPECIAL_FILE_NUM) return i;
       STRACE(SYSCALL_FILE_STRACE_SWITCH, "System file strace: Open file %s", pathname);
       return i;
     }
@@ -109,7 +109,7 @@ size_t fs_lseek(int fd, size_t offset, int whence) {
 int fs_close(int fd) {
   assert(fd < FILE_TABLE_NUM);
   file_table[fd].open_offset = 0;
-  if (fd < FD_PROC_DISPLAY) return 0;
+  if (fd < FD_SPECIAL_FILE_NUM) return 0;
   STRACE(SYSCALL_FILE_STRACE_SWITCH, "System file strace: Close file %s", file_table[fd].name);
   return 0;
 }
