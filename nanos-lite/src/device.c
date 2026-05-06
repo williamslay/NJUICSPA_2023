@@ -48,7 +48,7 @@ size_t dispinfo_read(void *buf, size_t offset, size_t len) {
   char dispinfo[DISPINFO_BUFFER_SIZE];
   AM_GPU_CONFIG_T cfg = io_read(AM_GPU_CONFIG);
   size_t real_cnt = snprintf(dispinfo, DISPINFO_BUFFER_SIZE,
-                            "WIDTH:%d\nHEIGHT:%d\n", cfg.width, cfg.height);
+                            "WIDTH: %d\nHEIGHT: %d\n", cfg.width, cfg.height);
   assert(real_cnt < len);
   memcpy(buf, dispinfo, real_cnt);
   return real_cnt;
