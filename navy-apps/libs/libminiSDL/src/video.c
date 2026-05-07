@@ -3,11 +3,14 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+
+/* in PA we only support 8/32 bits color */
 
 void SDL_BlitSurface(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect) {
   assert(dst && src);
   assert(dst->format->BitsPerPixel == src->format->BitsPerPixel);
-  
+
   SDL_Rect full_src = {0, 0, src->w, src->h};
   if (srcrect == NULL) srcrect = &full_src;
 
@@ -57,28 +60,43 @@ void SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, uint32_t color) {
       uint8_t *row = dst->pixels + (y + i) * dst->pitch + x;
       memset(row, (uint8_t)color, w);
     }
+    return;
   } else if (bpp == 4) {
     for (int i = 0; i < h; i++) {
       uint32_t *row = (uint32_t *)(dst->pixels + (y + i) * dst->pitch) + x;
       for (int j = 0; j < w; j++)
         row[j] = color;
     }
-  } else if (bpp == 2) {
-    for (int i = 0; i < h; i++) {
-      uint16_t *row = (uint16_t *)(dst->pixels + (y + i) * dst->pitch) + x;
-      for (int j = 0; j < w; j++)
-        row[j] = (uint16_t)color;
-    }
+    return;
   }
+  printf( "SDL_FillRect: Unsupported BytesPerPixel %d.\n", bpp);
+  assert(0);
 }
 
 void SDL_UpdateRect(SDL_Surface *s, int x, int y, int w, int h) {
+  int bpp = s->format->BytesPerPixel;
+  int width = w, height = h;
   if (x == 0 && y == 0 && w == 0 && h == 0) {
-    NDL_DrawRect(s->pixels, 0, 0, s->w, s->h);
+    width = s->w;
+    height = s->h;
+  }
+  if (bpp == 4) {
+    NDL_DrawRect((uint32_t *)s->pixels, x, y, width, height);
+    return;
+  } else if (bpp == 1) {
+    uint8_t * pixels_index = (uint8_t *)s->pixels;
+    uint32_t * pixels = (uint32_t *)malloc(width * height * sizeof(uint32_t *));
+    for(int i = 0; i < width * height; i++){
+      SDL_Color colors = s->format->palette->colors[pixels_index[(y + i / width) * s->w + i % width + x]];
+      uint32_t p = (colors.a << 24) | (colors.r << 16) | (colors.g << 8) | (colors.b << 0);//aabbggrr
+      pixels[i] = p;
+    }
+    NDL_DrawRect(pixels, x, y, width, height);
+    free(pixels);
     return;
   }
-  NDL_DrawRect(s->pixels, x, y, w, h);
-  return;
+  printf( "SDL_UpdateRect: Unsupported BytesPerPixel %d.\n", bpp);
+  assert(0);
 }
 
 // APIs below are already implemented.

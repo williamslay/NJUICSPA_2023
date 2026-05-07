@@ -51,6 +51,7 @@ LIBS += libc libos
 CFLAGS += -U_FORTIFY_SOURCE  # fix compile error in Newlib on ubuntu
 else
 WL = -Wl,
+CFLAGS += -g
 endif
 
 ### 32-bit ISA may need compiler-rt to support 64-bit mul/div

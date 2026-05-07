@@ -24,7 +24,6 @@ int NDL_PollEvent(char *buf, int len) {
   if (evtdev < 0) return 0;
   int ret = read(evtdev, buf, len - 1);
   buf[ret] = '\0';
-  close(evtdev);
   return ret;
 }
 
@@ -59,7 +58,6 @@ void NDL_OpenCanvas(int *w, int *h) {
   canvas_h = *h;
   canvas_x = (screen_w - canvas_w) / 2;
   canvas_y = (screen_h - canvas_h) / 2;
-  close(disp_info);
 }
 
 void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
